@@ -1,0 +1,427 @@
+# // SPDX-License-Identifier: BUSL-1.1
+# // Copyright (c) 2026 M. Javani
+# //
+# // This file is part of rzgate.
+# //
+# // Use of this software is governed by the Business Source License 1.1
+# // included in the LICENSE file in the root of this repository.
+
+openapi: 3.1.1
+info:
+  title: RzGate API
+  description: |
+    RzGate is a high-performance HTTP/JSON proxy for Roomzin.
+    It provides a single, unified endpoint for executing all Roomzin commands.
+    
+    **Authentication:** All requests require a Bearer token in the `Authorization` header.
+    - Full-access tokens can execute all commands.
+    - Read-only tokens can only execute query/search commands.
+  version: 1.0.0
+  contact:
+    name: Roomzin Support
+    email: mehdy.javany@gmail.com
+  license:
+    name: BUSL-1.1
+    url: https://github.com/m-javani/rzgate/blob/main/LICENSE
+servers:
+  - url: https://your-rzgate-server.com/api
+    description: Production RzGate server
+  - url: https://staging-rzgate.example.com/api
+    description: Staging environment
+security:
+  - bearerAuth: []
+paths:
+  /:
+    post:
+      summary: Execute a Roomzin command
+      description: |
+        A single endpoint that accepts all Roomzin commands. The `command` field determines
+        which operation to execute, and the `payload` contains the command-specific parameters.
+      operationId: executeCommand
+      tags:
+        - Core
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandRequest'
+      responses:
+        '200':
+          description: Command executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandResponse'
+        '400':
+          description: Bad request (e.g., invalid payload, missing required field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (token lacks required role for the command)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Roomzin backend unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ------------------------------------------------------------------
+    # Core Command Request
+    # ------------------------------------------------------------------
+    CommandRequest:
+      type: object
+      required:
+        - command
+        - payload
+      properties:
+        command:
+          type: string
+          enum:
+            - SETPROP
+            - SEARCHPROP
+            - SEARCHAVAIL
+            - SETROOMPKG
+            - SETROOMAVL
+            - INCROOMAVL
+            - DECROOMAVL
+            - PROPEXIST
+            - PROPROOMEXIST
+            - PROPROOMLIST
+            - PROPROOMDATELIST
+            - GETPROPROOMDAY
+            - DELPROP
+            - DELSEGMENT
+            - DELPROPDAY
+            - DELPROPROOM
+            - DELROOMDAY
+            - GETSEGMENTS
+          description: The Roomzin command to execute
+        payload:
+          oneOf:
+            - $ref: '#/components/schemas/SetPropPayload'
+            - $ref: '#/components/schemas/SearchPropPayload'
+            - $ref: '#/components/schemas/SearchAvailPayload'
+            - $ref: '#/components/schemas/SetRoomPkgPayload'
+            - $ref: '#/components/schemas/UpdRoomAvlPayload'
+            - $ref: '#/components/schemas/PropRoomExistPayload'
+            - $ref: '#/components/schemas/DelPropRoomPayload'
+            - $ref: '#/components/schemas/PropRoomDateListPayload'
+            - $ref: '#/components/schemas/DelRoomDayRequest'
+            - $ref: '#/components/schemas/DelPropDayRequest'
+            - $ref: '#/components/schemas/GetRoomDayRequest'
+            - $ref: '#/components/schemas/PropIdPayload'
+            - $ref: '#/components/schemas/SegmentPayload'
+            - $ref: '#/components/schemas/EmptyPayload'
+          discriminator:
+            propertyName: command
+            mapping:
+              SETPROP: '#/components/schemas/SetPropPayload'
+              SEARCHPROP: '#/components/schemas/SearchPropPayload'
+              SEARCHAVAIL: '#/components/schemas/SearchAvailPayload'
+              SETROOMPKG: '#/components/schemas/SetRoomPkgPayload'
+              SETROOMAVL: '#/components/schemas/UpdRoomAvlPayload'
+              INCROOMAVL: '#/components/schemas/UpdRoomAvlPayload'
+              DECROOMAVL: '#/components/schemas/UpdRoomAvlPayload'
+              PROPEXIST: '#/components/schemas/PropIdPayload'
+              PROPROOMEXIST: '#/components/schemas/PropRoomExistPayload'
+              PROPROOMLIST: '#/components/schemas/PropIdPayload'
+              PROPROOMDATELIST: '#/components/schemas/PropRoomDateListPayload'
+              GETPROPROOMDAY: '#/components/schemas/GetRoomDayRequest'
+              DELPROP: '#/components/schemas/PropIdPayload'
+              DELSEGMENT: '#/components/schemas/SegmentPayload'
+              DELPROPDAY: '#/components/schemas/DelPropDayRequest'
+              DELPROPROOM: '#/components/schemas/DelPropRoomPayload'
+              DELROOMDAY: '#/components/schemas/DelRoomDayRequest'
+              GETSEGMENTS: '#/components/schemas/EmptyPayload'
+
+    # ------------------------------------------------------------------
+    # Core Command Response
+    # ------------------------------------------------------------------
+    CommandResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/EmptyPayload'
+            - $ref: '#/components/schemas/SearchPropResponse'
+            - $ref: '#/components/schemas/SearchAvailResponse'
+            - $ref: '#/components/schemas/GetRoomDayResult'
+            - $ref: '#/components/schemas/AvailabilityResponse'
+            - $ref: '#/components/schemas/ExistsResponse'
+            - $ref: '#/components/schemas/GetSegmentsResponse'
+      additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          enum: [error]
+        message:
+          type: string
+          description: Human-readable error description
+
+    # ------------------------------------------------------------------
+    # Payloads
+    # ------------------------------------------------------------------
+    SetPropPayload:
+      type: object
+      required:
+        - segment
+        - area
+        - property_id
+        - property_type
+        - category
+        - stars
+        - latitude
+        - longitude
+      properties:
+        segment: { type: string }
+        area: { type: string }
+        property_id: { type: string }
+        property_type: { type: string }
+        category: { type: string }
+        stars: { type: integer, minimum: 1, maximum: 5 }
+        latitude: { type: number, format: float }
+        longitude: { type: number, format: float }
+        amenities: { type: array, items: { type: string } }
+
+    SearchPropPayload:
+      type: object
+      required:
+        - segment
+      properties:
+        segment: { type: string }
+        area: { type: string }
+        type: { type: string }
+        category: { type: string }
+        stars: { type: integer, minimum: 1, maximum: 5 }
+        amenities: { type: array, items: { type: string } }
+        latitude: { type: number, format: float }
+        longitude: { type: number, format: float }
+        limit: { type: integer, minimum: 1 }
+
+    SearchAvailPayload:
+      type: object
+      required:
+        - segment
+        - room_type
+        - date
+      properties:
+        segment: { type: string }
+        room_type: { type: string }
+        area: { type: string }
+        property_id: { type: string }
+        type: { type: string }
+        category: { type: string }
+        stars: { type: integer, minimum: 1, maximum: 5 }
+        amenities: { type: array, items: { type: string } }
+        latitude: { type: number, format: float }
+        longitude: { type: number, format: float }
+        date: { type: array, items: { type: string, format: date } }
+        availability: { type: integer }
+        final_price: { type: integer }
+        rate_features: { type: array, items: { type: string } }
+        limit: { type: integer, minimum: 1 }
+
+    SetRoomPkgPayload:
+      type: object
+      required:
+        - property_id
+        - room_type
+        - date
+      properties:
+        property_id: { type: string }
+        room_type: { type: string }
+        date: { type: string, format: date }
+        availability: { type: integer, minimum: 0 }
+        final_price: { type: integer }
+        rate_features: { type: array, items: { type: string } }
+
+    UpdRoomAvlPayload:
+      type: object
+      required:
+        - property_id
+        - room_type
+        - date
+        - amount
+      properties:
+        property_id: { type: string }
+        room_type: { type: string }
+        date: { type: string, format: date }
+        amount: { type: integer, minimum: 1 }
+
+    PropRoomExistPayload:
+      type: object
+      required:
+        - property_id
+        - room_type
+      properties:
+        property_id: { type: string }
+        room_type: { type: string }
+
+    DelPropRoomPayload:
+      type: object
+      required:
+        - property_id
+        - room_type
+      properties:
+        property_id: { type: string }
+        room_type: { type: string }
+
+    PropRoomDateListPayload:
+      type: object
+      required:
+        - property_id
+        - room_type
+      properties:
+        property_id: { type: string }
+        room_type: { type: string }
+
+    DelRoomDayRequest:
+      type: object
+      required:
+        - property_id
+        - room_type
+        - date
+      properties:
+        property_id: { type: string }
+        room_type: { type: string }
+        date: { type: string, format: date }
+
+    DelPropDayRequest:
+      type: object
+      required:
+        - property_id
+        - date
+      properties:
+        property_id: { type: string }
+        date: { type: string, format: date }
+
+    GetRoomDayRequest:
+      type: object
+      required:
+        - property_id
+        - room_type
+        - date
+      properties:
+        property_id: { type: string }
+        room_type: { type: string }
+        date: { type: string, format: date }
+
+    PropIdPayload:
+      type: object
+      required:
+        - property_id
+      properties:
+        property_id: { type: string }
+
+    SegmentPayload:
+      type: object
+      required:
+        - segment
+      properties:
+        segment: { type: string }
+
+    EmptyPayload:
+      type: object
+      description: No payload required for this command
+      additionalProperties: false
+
+    # ------------------------------------------------------------------
+    # Responses
+    # ------------------------------------------------------------------
+    SearchPropResponse:
+      type: object
+      properties:
+        properties:
+          type: array
+          items:
+            type: string
+
+    SearchAvailResponse:
+      type: object
+      properties:
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertyAvail'
+
+    PropertyAvail:
+      type: object
+      properties:
+        property_id: { type: string }
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayAvail'
+
+    DayAvail:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        availability: { type: integer }
+        final_price: { type: integer }
+        rate_feature: { type: array, items: { type: string } }
+
+    GetRoomDayResult:
+      type: object
+      properties:
+        property_id: { type: string }
+        date: { type: string, format: date }
+        availability: { type: integer }
+        final_price: { type: integer }
+        rate_feature: { type: array, items: { type: string } }
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        availability: { type: integer }
+
+    ExistsResponse:
+      type: object
+      properties:
+        exists: { type: boolean }
+
+    GetSegmentsResponse:
+      type: object
+      properties:
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SegmentInfo'
+
+    SegmentInfo:
+      type: object
+      properties:
+        segment: { type: string }
+        prop_count: { type: integer }

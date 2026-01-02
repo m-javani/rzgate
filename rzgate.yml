@@ -1,0 +1,28 @@
+# // SPDX-License-Identifier: BUSL-1.1
+# // Copyright (c) 2026 M. Javani
+# //
+# // This file is part of rzgate.
+# //
+# // Use of this software is governed by the Business Source License 1.1
+# // included in the LICENSE file in the root of this repository.
+
+discovery_kind: "static"  # or "http"
+discovery_yml_path: "./discovery.yml"  # required for static
+# discovery_addr: "" # "http://discovery-service:8080"  required for http
+roomzin_seed_ids: "node1"
+roomzin_api_port: 8080
+roomzin_tcp_port: 7777
+conn_per_roomzin_node: 50
+http_port: 8777
+https_port: 3443
+http_enabled: true
+https_enabled: true
+auth_enabled: true
+tokens_path: "./auth.yml"
+tls_cert_path: "./certs/cert.pem"
+tls_key_path: "./certs/key.pem"
+max_active_conns: 10000
+timeout: 2
+http_timeout: 2
+keep_alive: 30
+# worker_threads: 128

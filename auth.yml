@@ -1,0 +1,19 @@
+# // SPDX-License-Identifier: BUSL-1.1
+# // Copyright (c) 2026 M. Javani
+# //
+# // This file is part of rzgate.
+# //
+# // Use of this software is governed by the Business Source License 1.1
+# // included in the LICENSE file in the root of this repository.
+
+roomzin_token: "abc123"
+
+# Tokens with full access (queries + mutations/state changes)
+full_access_tokens:
+  - "rzgate123"
+  - "rzgate456"
+
+# Tokens limited to queries/searches only
+read_only_tokens:
+  - "partner789"
+  - "externalABC"
