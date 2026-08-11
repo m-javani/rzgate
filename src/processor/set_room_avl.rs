@@ -15,6 +15,7 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 pub async fn process_set_room_avl(
+    seg: &str,
     payload: &Value,
     handler: &Handler,
     metrics_tx: Sender<MetricsEvent>,
@@ -35,7 +36,8 @@ pub async fn process_set_room_avl(
     let amount = match payload.get("amount").and_then(|v| v.as_u64()) {
         Some(a) if a <= 255 => a as u8,
         _ => {
-            return error_response(metrics_tx.clone(), "amount is required and must be 0-255").await;
+            return error_response(metrics_tx.clone(), "amount is required and must be 0-255")
+                .await;
         }
     };
 
@@ -71,7 +73,7 @@ pub async fn process_set_room_avl(
     buf[field_count_pos] = 4u8;
     buf[field_count_pos + 1] = 0u8;
 
-    match handler.execute(true, buf).await {
+    match handler.execute(seg, true, buf).await {
         Ok(field_data) => decode_set_room_avl_response(metrics_tx.clone(), &field_data),
         Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
     }

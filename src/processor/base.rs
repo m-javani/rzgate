@@ -10,7 +10,6 @@ use axum::response::Response;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    auth::AccessLevel,
     handler::handler::Handler,
     metrics::MetricsEvent,
     processor::{
@@ -35,12 +34,7 @@ pub const MESSAGE_KEY: &[u8] = br#""message":"#;
 pub const ERROR_VALUE: &[u8] = br#""error""#;
 pub const SUCCESS_VALUE: &[u8] = br#""success""#;
 
-pub async fn process(
-    body: &[u8],
-    handler: &Handler,
-    metrics_tx: Sender<MetricsEvent>,
-    access_level: AccessLevel,
-) -> Response {
+pub async fn process(body: &[u8], handler: &Handler, metrics_tx: Sender<MetricsEvent>) -> Response {
     let _ = metrics_tx.try_send(MetricsEvent::ApiIncCommands);
     let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesReceived(body.len() as u64));
 
@@ -56,52 +50,51 @@ pub async fn process(
         None => return error_response(metrics_tx.clone(), "Missing command field").await,
     };
 
-    let is_write_command = matches!(
-        command,
-        "SETPROP"
-            | "SETROOMPKG"
-            | "SETROOMAVL"
-            | "INCROOMAVL"
-            | "DECROOMAVL"
-            | "DELROOMDAY"
-            | "DELPROPROOM"
-            | "DELPROP"
-            | "DELSEGMENT"
-            | "DELPROPDAY"
-    );
-
-    if is_write_command && access_level == AccessLevel::ReadOnly {
-        let _ = metrics_tx.try_send(MetricsEvent::ApiIncClientAuthFail); // optional new metric
-        return error_response(metrics_tx, "Command not allowed with read-only token").await;
-    }
+    let segment = match json.get("segment").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => {
+            // GETSEGMENTS is the only command that doesn't need a segment
+            if command == "GETSEGMENTS" {
+                ""
+            } else {
+                return error_response(metrics_tx.clone(), "Missing segment field").await;
+            }
+        }
+    };
 
     // Get body reference (doesn't copy data)
     let payload = json.get("body").unwrap_or(&Value::Null);
 
     match command.as_ref() {
-        "SETPROP" => process_set_prop(payload, handler, metrics_tx.clone()).await,
-        "PROPEXIST" => process_prop_exist(payload, handler, metrics_tx.clone()).await,
-        "SEARCHPROP" => process_search_prop(payload, handler, metrics_tx.clone()).await,
+        "SETPROP" => process_set_prop(segment, payload, handler, metrics_tx.clone()).await,
+        "PROPEXIST" => process_prop_exist(segment, payload, handler, metrics_tx.clone()).await,
+        "SEARCHPROP" => process_search_prop(segment, payload, handler, metrics_tx.clone()).await,
 
-        "SETROOMPKG" => process_set_room_pkg(payload, handler, metrics_tx.clone()).await,
-        "SETROOMAVL" => process_set_room_avl(payload, handler, metrics_tx.clone()).await,
-        "INCROOMAVL" => process_inc_room_avl(payload, handler, metrics_tx.clone()).await,
-        "DECROOMAVL" => process_dec_room_avl(payload, handler, metrics_tx.clone()).await,
-        "DELROOMDAY" => process_del_room_day(payload, handler, metrics_tx.clone()).await,
-        "PROPROOMEXIST" => process_prop_room_exist(payload, handler, metrics_tx.clone()).await,
-        "GETPROPROOMDAY" => process_get_prop_room_day(payload, handler, metrics_tx.clone()).await,
-        "PROPROOMDATELIST" => {
-            process_prop_room_date_list(payload, handler, metrics_tx.clone()).await
+        "SETROOMPKG" => process_set_room_pkg(segment, payload, handler, metrics_tx.clone()).await,
+        "SETROOMAVL" => process_set_room_avl(segment, payload, handler, metrics_tx.clone()).await,
+        "INCROOMAVL" => process_inc_room_avl(segment, payload, handler, metrics_tx.clone()).await,
+        "DECROOMAVL" => process_dec_room_avl(segment, payload, handler, metrics_tx.clone()).await,
+        "DELROOMDAY" => process_del_room_day(segment, payload, handler, metrics_tx.clone()).await,
+        "PROPROOMEXIST" => {
+            process_prop_room_exist(segment, payload, handler, metrics_tx.clone()).await
         }
-        "DELPROPROOM" => process_del_prop_room(payload, handler, metrics_tx.clone()).await,
+        "GETPROPROOMDAY" => {
+            process_get_prop_room_day(segment, payload, handler, metrics_tx.clone()).await
+        }
+        "PROPROOMDATELIST" => {
+            process_prop_room_date_list(segment, payload, handler, metrics_tx.clone()).await
+        }
+        "DELPROPROOM" => process_del_prop_room(segment, payload, handler, metrics_tx.clone()).await,
 
-        "SEARCHAVAIL" => process_search_avail(payload, handler, metrics_tx.clone()).await,
+        "SEARCHAVAIL" => process_search_avail(segment, payload, handler, metrics_tx.clone()).await,
 
-        "PROPROOMLIST" => process_prop_room_list(payload, handler, metrics_tx.clone()).await,
-        "DELPROP" => process_del_prop(payload, handler, metrics_tx.clone()).await,
-        "DELSEGMENT" => process_del_segment(payload, handler, metrics_tx.clone()).await,
-        "DELPROPDAY" => process_del_prop_day(payload, handler, metrics_tx.clone()).await,
-        "GETSEGMENTS" => process_get_segments(payload, handler, metrics_tx.clone()).await,
+        "PROPROOMLIST" => {
+            process_prop_room_list(segment, payload, handler, metrics_tx.clone()).await
+        }
+        "DELPROP" => process_del_prop(segment, payload, handler, metrics_tx.clone()).await,
+        "DELSEGMENT" => process_del_segment(segment, payload, handler, metrics_tx.clone()).await,
+        "DELPROPDAY" => process_del_prop_day(segment, payload, handler, metrics_tx.clone()).await,
+        "GETSEGMENTS" => process_get_segments(segment, payload, handler, metrics_tx.clone()).await,
 
         _ => error_response(metrics_tx.clone(), "unsupported command").await,
     }
@@ -142,6 +135,9 @@ pub async fn error_response(metrics_tx: Sender<MetricsEvent>, message: &str) -> 
         .into_response()
 }
 
+pub const SHARD_MAGIC: u8 = 0xFF;
+pub const ROUTER_MAGIC: u8 = 0xFE;
+
 // change this to zero copy direct write to stream
 pub fn prepend_header(clrid: u32, payload: &[u8]) -> Vec<u8> {
     let total_len = payload.len() as u32;
@@ -157,6 +153,47 @@ pub fn prepend_header(clrid: u32, payload: &[u8]) -> Vec<u8> {
     out.extend_from_slice(&total_len.to_le_bytes());
 
     // Payload
+    out.extend_from_slice(payload);
+
+    out
+}
+
+/// Builds a router frame for cluster mode
+/// | routerMagic(1) | totalLen(4) | segmentLen(1) | segment(n) | isWrite(1) | shardFrame |
+/// where shardFrame is the output of prepend_header
+pub fn prepend_router_header(segment: &str, is_write: bool, clrid: u32, payload: &[u8]) -> Vec<u8> {
+    // First build the shard frame to know its length
+    let shard_total_len = payload.len() as u32;
+    let shard_frame_len = 9 + shard_total_len; // magic(1) + clrid(4) + totalLen(4) + payload
+
+    // Router header components
+    let segment_len = segment.len() as u32;
+    let router_header_len = 1 + segment_len + 1; // segmentLen(1) + segment(n) + isWrite(1)
+
+    // Total frame length: routerMagic(1) + totalLen(4) + routerHeader + shardFrame
+    let total_len = 1 + 4 + router_header_len + shard_frame_len;
+
+    let mut out = Vec::with_capacity(total_len as usize);
+
+    // Router magic byte
+    out.push(ROUTER_MAGIC);
+
+    // Total length (everything after this field)
+    out.extend_from_slice(&((router_header_len + shard_frame_len) as u32).to_le_bytes());
+
+    // Segment length
+    out.push(segment_len as u8);
+
+    // Segment
+    out.extend_from_slice(segment.as_bytes());
+
+    // IsWrite flag
+    out.push(if is_write { 0x01 } else { 0x00 });
+
+    // Shard frame (magic, clrid, totalLen, payload)
+    out.push(SHARD_MAGIC);
+    out.extend_from_slice(&clrid.to_le_bytes());
+    out.extend_from_slice(&shard_total_len.to_le_bytes());
     out.extend_from_slice(payload);
 
     out

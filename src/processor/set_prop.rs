@@ -15,6 +15,7 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 pub async fn process_set_prop(
+    seg: &str,
     payload: &Value,
     handler: &Handler,
     metrics_tx: Sender<MetricsEvent>,
@@ -111,7 +112,7 @@ pub async fn process_set_prop(
     buf[field_count_pos] = field_count_bytes[0];
     buf[field_count_pos + 1] = field_count_bytes[1];
 
-    match handler.execute(true, buf).await {
+    match handler.execute(seg, true, buf).await {
         Ok(field_data) => decode_set_prop_response(metrics_tx.clone(), &field_data),
         Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
     }

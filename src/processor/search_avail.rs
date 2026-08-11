@@ -18,6 +18,7 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 pub async fn process_search_avail(
+    seg: &str,
     payload: &Value,
     handler: &Handler,
     metrics_tx: Sender<MetricsEvent>,
@@ -158,7 +159,7 @@ pub async fn process_search_avail(
     // Patch field count
     buf[field_count_pos..field_count_pos + 2].copy_from_slice(&field_count.to_le_bytes());
 
-    match handler.execute(false, buf).await {
+    match handler.execute(seg, false, buf).await {
         Ok(field_data) => decode_search_avail_response(metrics_tx.clone(), &field_data),
         Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
     }

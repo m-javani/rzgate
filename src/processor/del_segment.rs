@@ -15,6 +15,7 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 pub async fn process_del_segment(
+    seg: &str,
     payload: &Value,
     handler: &Handler,
     metrics_tx: Sender<MetricsEvent>,
@@ -41,7 +42,7 @@ pub async fn process_del_segment(
     buf.extend_from_slice(&(segment.len() as u32).to_le_bytes());
     buf.extend_from_slice(segment.as_bytes());
 
-    match handler.execute(true, buf).await {
+    match handler.execute(seg, true, buf).await {
         Ok(field_data) => decode_del_segment_response(metrics_tx.clone(), &field_data),
         Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
     }

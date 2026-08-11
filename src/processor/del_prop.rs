@@ -15,6 +15,7 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 pub async fn process_del_prop(
+    seg: &str,
     payload: &Value,
     handler: &Handler,
     metrics_tx: Sender<MetricsEvent>,
@@ -41,7 +42,7 @@ pub async fn process_del_prop(
     buf.extend_from_slice(&(property_id.len() as u32).to_le_bytes());
     buf.extend_from_slice(property_id.as_bytes());
 
-    match handler.execute(true, buf).await {
+    match handler.execute(seg, true, buf).await {
         Ok(field_data) => decode_del_prop_response(metrics_tx.clone(), &field_data),
         Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
     }

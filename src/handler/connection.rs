@@ -6,12 +6,7 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
-use crate::{
-    auth,
-    config::Config,
-    error::RZError,
-    handler::{demux::DemuxMap, protocol::prepend_header},
-};
+use crate::{config::Config, error::RZError, handler::demux::DemuxMap};
 
 use super::protocol::drain_frame_async;
 use bytes::{Bytes, BytesMut};
@@ -19,7 +14,7 @@ use std::sync::{
     Arc,
     atomic::{AtomicBool, AtomicU32, Ordering},
 };
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 
@@ -43,21 +38,8 @@ impl Connection {
         cfg: &Config,
         demux: Arc<DemuxMap>,
     ) -> Result<Self, RZError> {
-        let stream = TcpStream::connect((&*host, cfg.roomzin_tcp_port)).await?;
+        let stream = TcpStream::connect((&*host, cfg.port)).await?;
         let (mut reader, mut writer) = stream.into_split();
-
-        let login_frame = super::protocol::prepend_header(
-            0,
-            &super::protocol::build_login_payload(&auth::get_roomzin_token())?,
-        );
-        writer.write_all(&login_frame).await?;
-        writer.flush().await?;
-
-        let mut login_resp = [0u8; 8];
-        reader.read_exact(&mut login_resp).await?;
-        if &login_resp != b"LOGIN OK" {
-            return Err(RZError::Auth("login failed".into()));
-        }
 
         let (send_tx, mut send_rx) = mpsc::channel(cfg.max_active_conns.max(2048));
 
@@ -134,8 +116,7 @@ impl Connection {
         self.inner.corr_id.fetch_add(1, Ordering::Relaxed)
     }
 
-    pub async fn send(&self, corr_id: u32, payload: Vec<u8>) -> Result<(), ()> {
-        let frame = prepend_header(corr_id, &payload);
+    pub async fn send_frame(&self, frame: Vec<u8>) -> Result<(), ()> {
         self.inner.send_tx.send(frame).await.map_err(|_| ())
     }
 

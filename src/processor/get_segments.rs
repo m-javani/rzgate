@@ -17,6 +17,7 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 pub async fn process_get_segments(
+    seg: &str,
     payload: &Value,
     handler: &Handler,
     metrics_tx: Sender<MetricsEvent>,
@@ -36,7 +37,7 @@ pub async fn process_get_segments(
     // Field count = 0
     buf.extend_from_slice(&0u16.to_le_bytes());
 
-    match handler.execute(false, buf).await {
+    match handler.execute(seg, false, buf).await {
         Ok(field_data) => decode_get_segments_response(metrics_tx.clone(), &field_data),
         Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
     }

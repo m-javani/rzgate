@@ -15,6 +15,7 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 pub async fn process_prop_exist(
+    seg: &str,
     payload: &Value,
     handler: &Handler,
     metrics_tx: Sender<MetricsEvent>,
@@ -42,7 +43,7 @@ pub async fn process_prop_exist(
     buf.extend_from_slice(&(property_id.len() as u32).to_le_bytes());
     buf.extend_from_slice(property_id.as_bytes());
 
-    match handler.execute(false, buf).await {
+    match handler.execute(seg, false, buf).await {
         Ok(field_data) => decode_prop_exist_response(metrics_tx.clone(), &field_data),
         Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
     }

@@ -35,16 +35,6 @@ pub struct Header {
     pub field_cnt: u16, // number of fields that follow
 }
 
-pub fn prepend_header(clr_id: u32, payload: &[u8]) -> Vec<u8> {
-    let total_len = payload.len() as u32;
-    let mut out = Vec::with_capacity(9 + total_len as usize);
-    out.push(0xFF);
-    out.extend_from_slice(&clr_id.to_le_bytes());
-    out.extend_from_slice(&total_len.to_le_bytes());
-    out.extend_from_slice(payload);
-    out
-}
-
 pub async fn drain_frame_async(
     reader: &mut (impl AsyncRead + Unpin),
     buf: &mut BytesMut,
