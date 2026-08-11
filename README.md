@@ -74,22 +74,20 @@ A single YAML file controls every runtime setting.
 | `worker_threads` | Tokio worker threads (`0` = auto) | `num_cpus * 3` |
 | `listening_addr` | Address RzGate listens on | `0.0.0.0` |
 | `http_port` | HTTP port | `8777` |
-| `http_enabled` | Enable HTTP | `false` |
 
 ### Example `rzgate.yml`
 
 ```yaml
-# Standalone mode
-addr: "127.0.0.1"
+addr: "router.example.com" # | "127.0.0.1"
 port: 7777
-mode: "standalone"
-http_enabled: true
-
-# Or router mode
-# addr: "router.example.com"
-# port: 7777
-# mode: "router"
-# http_enabled: true
+mode: "router" # | "standalone"
+listening_addr: "0.0.0.0"
+http_port: 8777
+timeout_sec: 2
+keep_alive_sec: 30
+conn_per_node: 10
+max_active_conns: 10000
+worker_threads: 0
 ```
 
 ---

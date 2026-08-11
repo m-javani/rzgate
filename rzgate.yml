@@ -1,10 +1,8 @@
 addr: "router.example.com" # | "127.0.0.1"
 port: 7777
 mode: "router" # | "standalone"
-
 listening_addr: "0.0.0.0"
 http_port: 8777
-
 timeout_sec: 2
 keep_alive_sec: 30
 conn_per_node: 10
