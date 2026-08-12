@@ -38,7 +38,7 @@ impl Connection {
         cfg: &Config,
         demux: Arc<DemuxMap>,
     ) -> Result<Self, RZError> {
-        let stream = TcpStream::connect((&*host, cfg.port)).await?;
+        let stream = TcpStream::connect((&*host, cfg.roomzin_port)).await?;
         let (mut reader, mut writer) = stream.into_split();
 
         let (send_tx, mut send_rx) = mpsc::channel(cfg.max_active_conns.max(2048));

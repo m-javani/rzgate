@@ -49,8 +49,8 @@ impl Handler {
 
         // Determine target based on mode
         let (target_addr, target_port, mode) = match cfg.mode {
-            Mode::Standalone => (cfg.addr.clone(), cfg.port, Mode::Standalone),
-            Mode::Router => (cfg.addr.clone(), cfg.port, Mode::Router),
+            Mode::Standalone => (cfg.roomzin_addr.clone(), cfg.roomzin_port, Mode::Standalone),
+            Mode::Router => (cfg.roomzin_addr.clone(), cfg.roomzin_port, Mode::Router),
         };
 
         let handler = Arc::new(Self {
