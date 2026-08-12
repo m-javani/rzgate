@@ -11,8 +11,6 @@ FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /opt/rzgate/certs /opt/rzgate/configs
-
 # Binary is copied to root by CI
 COPY rzgate /opt/rzgate/rzgate
 
