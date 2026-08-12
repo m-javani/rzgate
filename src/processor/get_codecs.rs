@@ -27,8 +27,7 @@ pub async fn process_get_codecs(handler: &Handler) -> Result<Codecs, RZError> {
     buf.extend_from_slice(&0u16.to_le_bytes());
 
     // Execute — note: this is internal, so we use the raw field data
-    // todo fix this
-    let field_data = handler.execute("", false, buf).await?;
+    let field_data = handler.execute("__codecs__", false, buf).await?;
 
     decode_get_codecs_response(&field_data).map_err(|e| RZError::ParseError(e.to_string()))
 }
