@@ -79,7 +79,14 @@ pub struct Config {
 
 impl Config {
     pub fn parse() -> Self {
-        <Self as Parser>::parse()
+        let mut config = <Self as Parser>::parse();
+        config.roomzin_addr = config
+            .roomzin_addr
+            .trim_start_matches("http://")
+            .trim_start_matches("https://")
+            .trim_end_matches('/')
+            .to_string();
+        config
     }
 
     pub fn effective_workers(&self) -> usize {
