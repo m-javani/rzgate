@@ -16,6 +16,6 @@ COPY rzgate /opt/rzgate/rzgate
 
 RUN chmod +x /opt/rzgate/rzgate
 
-EXPOSE 8777 3443
+EXPOSE 8777
 
 CMD ["/opt/rzgate/rzgate"]
