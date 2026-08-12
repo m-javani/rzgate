@@ -39,55 +39,66 @@ chmod +x rzgate
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-c, --config` | Path to `rzgate.yml` | `./rzgate.yml` → `/etc/rzgate/rzgate.yml` |
-| `--addr` | Server address (standalone host or router address) | From config |
-| `--port` | TCP port | From config |
-| `--mode` | `standalone` or `router` | From config |
-| `--listening-addr` | Address RzGate listens on | From config |
-| `--http-port` | HTTP port | From config |
-
-### Run RzGate
-
-```bash
-# With config file
-./rzgate --config ./rzgate.yml
-
-# Override config values
-./rzgate --addr router.example.com --port 7777 --mode router
-```
+| `--mode` | `standalone` or `router` | `standalone` |
+| `--listening-addr` | Address RzGate listens on | `0.0.0.0` |
+| `--http-port` | HTTP port | `8777` |
+| `--roomzin-addr` | Roomzin server address | `127.0.0.1` |
+| `--roomzin-port` | Roomzin server port | `7777` |
+| `--timeout-sec` | Request timeout | `2` |
+| `--keep-alive-sec` | TCP keepalive interval | `30` |
+| `--conn-per-node` | TCP connections per node | `10` |
+| `--max-active-conns` | Maximum concurrent connections | `10000` |
+| `--worker-threads` | Tokio worker threads (`0` = auto) | `num_cpus * 3` |
 
 ---
 
-## Configuration (`rzgate.yml`)
+## Run RzGate
 
-A single YAML file controls every runtime setting.
+```bash
+# Override defaults
+./rzgate \
+    --mode router \
+    --roomzin-addr router.example.com \
+    --roomzin-port 7777 \
+    --listening-addr 0.0.0.0 \
+    --http-port 8777
+```
 
-| Key | Purpose | Default |
-|-----|---------|---------|
-| `addr` | Server address (standalone host or router address) | Required |
-| `port` | TCP port | Required |
-| `mode` | `standalone` or `router` | `standalone` |
-| `timeout_sec` | Request timeout | `2` |
-| `keep_alive_sec` | TCP keepalive interval | `30` |
-| `conn_per_node` | Number of TCP connections per node | `1` |
-| `max_active_conns` | Maximum concurrent connections | `10000` |
-| `worker_threads` | Tokio worker threads (`0` = auto) | `num_cpus * 3` |
-| `listening_addr` | Address RzGate listens on | `0.0.0.0` |
-| `http_port` | HTTP port | `8777` |
+**Note:** No configuration file needed. All settings are available as CLI flags with sensible defaults.
 
-### Example `rzgate.yml`
+---
 
-```yaml
-addr: "router.example.com" # | "127.0.0.1"
-port: 7777
-mode: "router" # | "standalone"
-listening_addr: "0.0.0.0"
-http_port: 8777
-timeout_sec: 2
-keep_alive_sec: 30
-conn_per_node: 10
-max_active_conns: 10000
-worker_threads: 0
+## Configuration
+
+RzGate is configured entirely via CLI flags — no YAML file required. All settings have sensible defaults, so you can get started with just `./rzgate`.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--mode` | `standalone` or `router` | `standalone` |
+| `--roomzin-addr` | Roomzin server address | `127.0.0.1` |
+| `--roomzin-port` | Roomzin server port | `7777` |
+| `--listening-addr` | Address RzGate listens on | `0.0.0.0` |
+| `--http-port` | HTTP port | `8777` |
+| `--timeout-sec` | Request timeout | `2` |
+| `--keep-alive-sec` | TCP keepalive interval | `30` |
+| `--conn-per-node` | TCP connections per node | `10` |
+| `--max-active-conns` | Maximum concurrent connections | `10000` |
+| `--worker-threads` | Tokio worker threads (`0` = auto) | `num_cpus * 3` |
+
+### Example with all flags
+
+```bash
+./rzgate \
+    --mode router \
+    --roomzin-addr 10.0.0.10 \
+    --roomzin-port 7777 \
+    --listening-addr 0.0.0.0 \
+    --http-port 8777 \
+    --timeout-sec 2 \
+    --keep-alive-sec 30 \
+    --conn-per-node 10 \
+    --max-active-conns 10000 \
+    --worker-threads 0
 ```
 
 ---
