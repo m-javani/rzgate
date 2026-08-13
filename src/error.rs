@@ -32,7 +32,7 @@ pub enum RZError {
     NoFollowerNodeAvailable,
     #[error("HTTP error: {0}")]
     Http(String),
-    #[error("Request timeout")]
+    #[error("Request timeoutw")]
     Timeout,
     #[error("Internal error: {0}")]
     Internal(String),
