@@ -6,38 +6,18 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
-use std::io;
-
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RZError {
-    #[error("Operation cancelled")]
-    Cancelled,
-    #[error("Authentication error: {0}")]
-    Auth(String),
-    #[error("Config error: {0}")]
-    Config(String),
     #[error("Validation error: {0}")]
     Validation(String),
-    #[error("Parse error: {0}")]
-    ParseError(String),
-    #[error("Internal error: {0}")]
-    System(String),
-    #[error("roomzin node unreachable: {0}")]
+    #[error("roomzin unreachable: {0}")]
     RoomzinUnreachable(String),
-    #[error("no leader found in cluster")]
-    NoLeaderAvailable,
-    #[error("no follower node found in cluster")]
-    NoFollowerNodeAvailable,
-    #[error("HTTP error: {0}")]
-    Http(String),
     #[error("Request timeoutw")]
     Timeout,
     #[error("Internal error: {0}")]
     Internal(String),
-    #[error("request failed: {0}")]
-    Request(#[from] reqwest::Error),
-    #[error("internal error: {0}")]
-    Io(#[from] io::Error),
+    #[error("network error: {0}")]
+    Network(String),
 }

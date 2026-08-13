@@ -122,7 +122,7 @@ async fn http_server(
             tracing::debug!("error in axum api server {:?}", e);
             tracing::error!(
                 "{}",
-                RZError::System("api server crashed".into()).to_string()
+                RZError::Internal("api server crashed".into()).to_string()
             );
         })
         .unwrap();

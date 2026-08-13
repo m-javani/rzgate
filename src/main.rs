@@ -43,7 +43,7 @@ fn main() -> Result<(), RZError> {
         .max_blocking_threads(512)
         .enable_all()
         .build()
-        .map_err(|e| RZError::System(format!("Failed to build runtime: {e}")))?;
+        .map_err(|e| RZError::Internal(format!("Failed to build runtime: {e}")))?;
 
     rt.block_on(async_main(cfg))
 }

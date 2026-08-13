@@ -42,12 +42,16 @@ impl Connection {
         cfg: &Config,
         demux: Arc<DemuxMap>,
     ) -> Result<Self, RZError> {
-        let addrs = lookup_host(&addr).await?;
+        let addrs = lookup_host(&addr)
+            .await
+            .map_err(|_| RZError::Network("No addresses resolved".to_string()))?;
         let resolved_address = addrs
             .into_iter()
             .next()
-            .ok_or_else(|| RZError::Internal("No addresses resolved".to_string()))?;
-        let stream = TcpStream::connect(resolved_address).await?;
+            .ok_or_else(|| RZError::Network("No addresses resolved".to_string()))?;
+        let stream = TcpStream::connect(resolved_address)
+            .await
+            .map_err(|_| RZError::Network(format!("couldnt connect to {}", resolved_address)))?;
         let (mut reader, mut writer) = stream.into_split();
 
         let (send_tx, mut send_rx) = mpsc::channel(cfg.max_active_conns.max(2048));
