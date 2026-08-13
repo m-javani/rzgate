@@ -87,6 +87,7 @@ async fn http_server(
 
     let app = Router::new()
         .route("/api", post(process_request))
+        .route("/health", get(health_handler))
         .route(
             "/metrics",
             get(move || async move {
@@ -130,4 +131,8 @@ async fn http_server(
 async fn process_request(State(state): State<Arc<AppState>>, body: axum::body::Bytes) -> Response {
     // Always pass Full access (no auth)
     process(&body, &state.handler, state.metrics_tx.clone()).await
+}
+
+async fn health_handler() -> &'static str {
+    "OK"
 }
