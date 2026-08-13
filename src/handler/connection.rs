@@ -6,7 +6,11 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
-use crate::{config::Config, error::RZError, handler::demux::DemuxMap};
+use crate::{
+    config::Config,
+    error::RZError,
+    handler::{demux::DemuxMap, protocol::build_keepalive_frame},
+};
 
 use super::protocol::drain_frame_async;
 use bytes::{Bytes, BytesMut};
@@ -112,6 +116,31 @@ impl Connection {
                 }
             }
             read_inner.closed.store(true, Ordering::Release);
+        });
+
+        let ka_inner = inner.clone();
+        let keepalive_interval = cfg.keep_alive_interval();
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(keepalive_interval);
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            // first tick completes immediately – skip it
+            ticker.tick().await;
+
+            let ka_frame = build_keepalive_frame();
+
+            loop {
+                ticker.tick().await;
+
+                if ka_inner.closed.load(Ordering::Acquire) {
+                    break;
+                }
+
+                // Non-blocking is also fine: try_send
+                if ka_inner.send_tx.send(ka_frame.clone()).await.is_err() {
+                    // channel closed or connection already dying
+                    break;
+                }
+            }
         });
 
         Ok(conn)

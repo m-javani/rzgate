@@ -96,4 +96,8 @@ impl Config {
             self.worker_threads
         }
     }
+
+    pub fn keep_alive_interval(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(self.keep_alive_sec)
+    }
 }

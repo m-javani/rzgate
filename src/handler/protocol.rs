@@ -7,7 +7,6 @@
 // // included in the LICENSE file in the root of this repository.
 
 use bytes::{Bytes, BytesMut};
-use std::io::{self, Write};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
@@ -102,17 +101,29 @@ pub async fn drain_frame_async(
     Ok((hdr, payload))
 }
 
-pub fn build_login_payload(token: &str) -> io::Result<Vec<u8>> {
-    let mut buf = Vec::new();
+pub const ROUTER_MAGIC: u8 = 0xFE;
+pub const SHARD_MAGIC: u8 = 0xFF;
 
-    let cmd = "LOGIN";
-    buf.write_all(&[(cmd.len() as u8)])?; // cmd len
-    buf.write_all(cmd.as_bytes())?; // cmd name
-    buf.write_all(&1u16.to_le_bytes())?; // field count = 1
-    buf.write_all(&0x01u16.to_le_bytes())?; // field ID
-    buf.write_all(&[0x01])?; // field type (string)
-    buf.write_all(&(token.len() as u32).to_le_bytes())?; // token len
-    buf.write_all(token.as_bytes())?; // token
+/// Special control segment used for application-level keepalives.
+pub const KEEPALIVE_SEGMENT: &str = "__keepalive__";
 
-    Ok(buf)
+/// Build a router-level keepalive frame (segment = "__keepalive__").
+/// clrid can be 0 – it is a control message, not demuxed.
+pub fn build_keepalive_frame() -> Vec<u8> {
+    let segment = KEEPALIVE_SEGMENT.as_bytes();
+    let seg_len = segment.len() as u8;
+
+    // total_len = seg_len_byte + segment + is_write + shard header (1 + 4 + 4)
+    let total_len = 1 + segment.len() + 1 + 9;
+
+    let mut buf = Vec::with_capacity(5 + total_len);
+    buf.push(ROUTER_MAGIC);
+    buf.extend_from_slice(&(total_len as u32).to_le_bytes());
+    buf.push(seg_len);
+    buf.extend_from_slice(segment);
+    buf.push(0x00); // is_write = false
+    buf.push(SHARD_MAGIC);
+    buf.extend_from_slice(&0u32.to_le_bytes()); // clrid = 0
+    buf.extend_from_slice(&0u32.to_le_bytes()); // empty payload length / padding
+    buf
 }
