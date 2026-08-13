@@ -14,9 +14,9 @@ use std::sync::{
     Arc,
     atomic::{AtomicBool, AtomicU32, Ordering},
 };
-use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
+use tokio::{io::AsyncWriteExt, net::lookup_host};
 
 #[derive(Clone)]
 pub struct Connection {
@@ -34,17 +34,22 @@ pub struct ConnectionInner {
 
 impl Connection {
     pub async fn connect(
-        host: String,
+        addr: String,
         cfg: &Config,
         demux: Arc<DemuxMap>,
     ) -> Result<Self, RZError> {
-        let stream = TcpStream::connect((&*host, cfg.roomzin_port)).await?;
+        let addrs = lookup_host(&addr).await?;
+        let resolved_address = addrs
+            .into_iter()
+            .next()
+            .ok_or_else(|| RZError::Internal("No addresses resolved".to_string()))?;
+        let stream = TcpStream::connect(resolved_address).await?;
         let (mut reader, mut writer) = stream.into_split();
 
         let (send_tx, mut send_rx) = mpsc::channel(cfg.max_active_conns.max(2048));
 
         let inner = Arc::new(ConnectionInner {
-            addr: host.clone(),
+            addr: addr.clone(),
             demux,
             send_tx: send_tx.clone(),
             corr_id: AtomicU32::new(1),

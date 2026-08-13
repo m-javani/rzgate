@@ -34,6 +34,8 @@ pub enum RZError {
     Http(String),
     #[error("Request timeout")]
     Timeout,
+    #[error("Internal error: {0}")]
+    Internal(String),
     #[error("request failed: {0}")]
     Request(#[from] reqwest::Error),
     #[error("internal error: {0}")]
