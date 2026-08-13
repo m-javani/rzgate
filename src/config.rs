@@ -61,7 +61,7 @@ pub struct Config {
     pub timeout_sec: u64,
 
     /// Keep-alive interval in seconds
-    #[clap(long, default_value = "30")]
+    #[clap(long, default_value = "15")]
     pub keep_alive_sec: u64,
 
     /// Connections per node
