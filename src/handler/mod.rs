@@ -9,4 +9,3 @@
 pub mod connection;
 pub mod demux;
 pub mod handler;
-pub mod protocol;

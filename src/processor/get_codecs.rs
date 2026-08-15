@@ -9,11 +9,7 @@
 use bytes::Bytes;
 
 // Adjust these imports to match your project structure
-use crate::{
-    error::RZError,
-    handler::{handler::Handler, protocol::ProtocolError},
-    processor::base::Codecs,
-};
+use crate::{error::RZError, handler::handler::Handler, protocol::{Codecs, ProtocolError}};
 
 pub async fn process_get_codecs(handler: &Handler) -> Result<Codecs, RZError> {
     // Build payload: GETCODECS with 0 fields

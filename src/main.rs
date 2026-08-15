@@ -1,8 +1,10 @@
 use rzgate::{
+    bitmask::set_codecs,
     config::Config,
     error::RZError,
     handler::handler::Handler,
     metrics::{Metrics, MetricsEvent},
+    processor::get_codecs::process_get_codecs,
     server,
 };
 use std::sync::Arc;
@@ -62,6 +64,9 @@ async fn async_main(cfg: Config) -> Result<(), RZError> {
 
     let handler = Handler::new(cfg.clone(), metrics_tx.clone(), shutdown.clone());
     sleep(tokio::time::Duration::from_secs(1)).await;
+
+    let codecs = process_get_codecs(&handler).await?;
+    let _ = set_codecs(codecs)?;
 
     let metrics = Arc::new(Metrics::new());
 

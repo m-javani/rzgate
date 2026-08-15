@@ -20,7 +20,7 @@ use crate::error::RZError;
 use crate::handler::connection::Connection;
 use crate::handler::demux::DemuxMap;
 use crate::metrics::MetricsEvent;
-use crate::processor::base::{prepend_header, prepend_router_header};
+use crate::protocol::{prepend_header, prepend_router_header};
 
 pub struct Handler {
     inner: Arc<HandlerInner>,

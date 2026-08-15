@@ -6,13 +6,8 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
-use crate::{
-    config::Config,
-    error::RZError,
-    handler::{demux::DemuxMap, protocol::build_keepalive_frame},
-};
+use crate::{config::Config, error::RZError, handler::demux::DemuxMap, protocol::{build_keepalive_frame, drain_frame_async}};
 
-use super::protocol::drain_frame_async;
 use bytes::{Bytes, BytesMut};
 use std::sync::{
     Arc,

@@ -8,7 +8,7 @@
 
 use once_cell::sync::OnceCell;
 
-use crate::{error::RZError, processor::base::Codecs};
+use crate::{error::RZError, protocol::Codecs};
 
 pub static RATE_FEATURES: OnceCell<Vec<&'static str>> = OnceCell::new();
 
@@ -37,7 +37,7 @@ pub fn set_codecs(codecs: Codecs) -> Result<(), RZError> {
     // Initialize OnceCell values
     RATE_FEATURES
         .set(rate_features)
-        .map_err(|_| RZError::Validation("Failed to set RATE_FEATURES".to_string()))?;
+        .map_err(|_| RZError::Internal("Failed to set RATE_FEATURES".to_string()))?;
 
     Ok(())
 }

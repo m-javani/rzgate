@@ -7,8 +7,8 @@
 // // included in the LICENSE file in the root of this repository.
 
 use crate::metrics::MetricsEvent;
-use crate::processor::base::{handle_non_success_status, invalid_response};
-use crate::{handler::handler::Handler, processor::base::error_response};
+use crate::protocol::{handle_non_success_status, invalid_response};
+use crate::{handler::handler::Handler, protocol::error_response};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -17,7 +17,6 @@ use serde_json::Value;
 use tokio::sync::mpsc::Sender;
 
 pub async fn process_get_segments(
-    seg: &str,
     payload: &Value,
     handler: &Handler,
     metrics_tx: Sender<MetricsEvent>,
@@ -37,7 +36,7 @@ pub async fn process_get_segments(
     // Field count = 0
     buf.extend_from_slice(&0u16.to_le_bytes());
 
-    match handler.execute(seg, false, buf).await {
+    match handler.execute("GETSEGMENTS", false, buf).await {
         Ok(field_data) => decode_get_segments_response(metrics_tx.clone(), &field_data),
         Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
     }

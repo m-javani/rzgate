@@ -8,8 +8,8 @@
 
 use crate::helper::{write_packed_date, write_quoted_property_id, write_rate_features_array};
 use crate::metrics::MetricsEvent;
-use crate::processor::base::{handle_non_success_status, invalid_response};
-use crate::{handler::handler::Handler, processor::base::error_response};
+use crate::protocol::{handle_non_success_status, invalid_response};
+use crate::{handler::handler::Handler, protocol::error_response};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::response::Response;

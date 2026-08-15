@@ -13,4 +13,5 @@ pub mod handler;
 pub mod helper;
 pub mod metrics;
 pub mod processor;
+pub mod protocol;
 pub mod server;
