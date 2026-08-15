@@ -9,7 +9,7 @@
 use bytes::Bytes;
 
 // Adjust these imports to match your project structure
-use crate::{error::RZError, handler::handler::Handler, protocol::{Codecs, ProtocolError}};
+use crate::{error::RZError, handler::handler::Handler, protocol::Codecs};
 
 pub async fn process_get_codecs(handler: &Handler) -> Result<Codecs, RZError> {
     // Build payload: GETCODECS with 0 fields
@@ -25,22 +25,20 @@ pub async fn process_get_codecs(handler: &Handler) -> Result<Codecs, RZError> {
     // Execute — note: this is internal, so we use the raw field data
     let field_data = handler.execute("__codecs__", false, buf).await?;
 
-    decode_get_codecs_response(&field_data).map_err(|e| RZError::Internal(e.to_string()))
+    decode_get_codecs_response(&field_data)
 }
 
-pub fn decode_get_codecs_response(payload: &Bytes) -> Result<Codecs, ProtocolError> {
+pub fn decode_get_codecs_response(payload: &Bytes) -> Result<Codecs, RZError> {
     let data = payload.as_ref();
 
     if data.is_empty() {
-        return Err(ProtocolError::InvalidResponse(
-            "empty payload for GETCODECS".into(),
-        ));
+        return Err(RZError::Internal("empty payload for GETCODECS".into()));
     }
 
     let status_len = data[0] as usize;
     let min_len = 1 + status_len + 2;
     if data.len() < min_len {
-        return Err(ProtocolError::InvalidResponse(
+        return Err(RZError::Internal(
             "payload too short for status + field count".into(),
         ));
     }
@@ -52,29 +50,27 @@ pub fn decode_get_codecs_response(payload: &Bytes) -> Result<Codecs, ProtocolErr
 
     // --- Defensive check: must be SUCCESS ---
     if status != b"SUCCESS" {
-        return Err(ProtocolError::InvalidResponse(
+        return Err(RZError::Internal(
             format!("unexpected status: {}", String::from_utf8_lossy(status)).into(),
         ));
     }
 
     // --- Must have exactly 1 field ---
     if field_count != 1 {
-        return Err(ProtocolError::InvalidResponse(
+        return Err(RZError::Internal(
             format!("expected exactly 1 field, got {}", field_count).into(),
         ));
     }
 
     if offset + 7 > data.len() {
-        return Err(ProtocolError::InvalidResponse(
-            "truncated field header".into(),
-        ));
+        return Err(RZError::Internal("truncated field header".into()));
     }
 
     let field_id = u16::from_le_bytes([data[offset], data[offset + 1]]);
     let field_type = data[offset + 2];
 
     if field_id != 1 {
-        return Err(ProtocolError::InvalidResponse(
+        return Err(RZError::Internal(
             format!("expected field ID 1, got {}", field_id).into(),
         ));
     }
@@ -88,9 +84,7 @@ pub fn decode_get_codecs_response(payload: &Bytes) -> Result<Codecs, ProtocolErr
     offset += 7;
 
     if offset + field_len > data.len() {
-        return Err(ProtocolError::InvalidResponse(
-            "truncated field data".into(),
-        ));
+        return Err(RZError::Internal("truncated field data".into()));
     }
 
     let field_data = &data[offset..offset + field_len];
@@ -100,18 +94,18 @@ pub fn decode_get_codecs_response(payload: &Bytes) -> Result<Codecs, ProtocolErr
         let msg = std::str::from_utf8(field_data)
             .unwrap_or("invalid UTF-8 error message")
             .to_string();
-        return Err(ProtocolError::InvalidResponse(msg));
+        return Err(RZError::Internal(msg));
     }
 
     // --- Success case: type 0x09, comma-separated rate features ---
     if field_type != 0x09 {
-        return Err(ProtocolError::InvalidResponse(
+        return Err(RZError::Internal(
             format!("expected field type 0x09, got 0x{:02x}", field_type).into(),
         ));
     }
 
     let raw_str = std::str::from_utf8(field_data)
-        .map_err(|_| ProtocolError::InvalidResponse("invalid UTF-8 in codecs payload".into()))?;
+        .map_err(|_| RZError::Internal("invalid UTF-8 in codecs payload".into()))?;
 
     let rate_features: Vec<String> = raw_str
         .split(',')
