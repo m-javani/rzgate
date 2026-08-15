@@ -249,32 +249,3 @@ pub fn invalid_response() -> Response {
     )
         .into_response()
 }
-
-pub fn error_response_from_status(metrics_tx: Sender<MetricsEvent>, status: &[u8]) -> Response {
-    let clean: Vec<u8> = status
-        .iter()
-        .copied()
-        .filter(|b| *b >= 0x20 && *b <= 0x7E)
-        .collect();
-
-    let msg = if clean.is_empty() {
-        b"UNKNOWN_ERROR".as_slice()
-    } else {
-        &clean
-    };
-
-    let mut json = Vec::new();
-    json.extend_from_slice(br#"{"status":"error","message":""#);
-    json.extend_from_slice(msg);
-    json.extend_from_slice(br#""}"#);
-
-    let _ = metrics_tx.try_send(MetricsEvent::ApiIncClientErrors);
-    let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(json.len() as u64));
-
-    (
-        StatusCode::BAD_REQUEST,
-        [(header::CONTENT_TYPE, "application/json")],
-        json,
-    )
-        .into_response()
-}

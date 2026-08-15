@@ -1,12 +1,11 @@
 use crate::metrics::MetricsEvent;
-use crate::protocol::{error_response_from_status, invalid_response};
+use crate::protocol::invalid_response;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::response::Response;
 use tokio::sync::mpsc::Sender;
 
 use bytes::Bytes;
-
 
 /// Decodes a simple command response: expects either
 /// - SUCCESS with 0 fields → success JSON
@@ -255,6 +254,32 @@ pub fn handle_non_success_status(
         }
     }
 
-    // Fallback
-    error_response_from_status(metrics_tx.clone(), status)
+    // Fallback: sanitize status bytes and build error response
+    // Fallback: sanitize status bytes and build error response
+    let mut clean: Vec<u8> = status
+        .iter()
+        .copied()
+        .filter(|b| *b >= 0x20 && *b <= 0x7E)
+        .collect();
+
+    if clean.is_empty() {
+        clean.extend_from_slice(b"UNKNOWN_ERROR");
+    }
+
+    let msg = &clean;
+
+    let mut json = Vec::with_capacity(64 + msg.len());
+    json.extend_from_slice(br#"{"status":"error","message":""#);
+    json.extend_from_slice(msg);
+    json.extend_from_slice(br#""}"#);
+
+    let _ = metrics_tx.try_send(MetricsEvent::ApiIncClientErrors);
+    let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(json.len() as u64));
+
+    (
+        StatusCode::BAD_REQUEST,
+        [(header::CONTENT_TYPE, "application/json")],
+        json,
+    )
+        .into_response()
 }
