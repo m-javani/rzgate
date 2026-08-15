@@ -243,7 +243,7 @@ pub async fn error_response(metrics_tx: Sender<MetricsEvent>, message: &str) -> 
 
 pub fn invalid_response() -> Response {
     (
-        StatusCode::BAD_REQUEST,
+        StatusCode::INTERNAL_SERVER_ERROR,
         [(header::CONTENT_TYPE, "application/json")],
         br#"{"status":"error","message":"INVALID_RESPONSE_FORMAT"}"#,
     )
