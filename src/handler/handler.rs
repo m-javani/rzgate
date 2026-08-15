@@ -39,11 +39,7 @@ struct HandlerInner {
 }
 
 impl Handler {
-    pub fn new(
-        cfg: Config,
-        metrics: MetricsRef,
-        cancel_token: CancellationToken,
-    ) -> Arc<Self> {
+    pub fn new(cfg: Config, metrics: MetricsRef, cancel_token: CancellationToken) -> Arc<Self> {
         let conn_count = cfg.conn_per_node;
         let conns = vec![None; conn_count];
 
@@ -101,7 +97,14 @@ impl Handler {
 
             if should_connect {
                 let addr_with_port = format!("{}:{}", addr, port);
-                match Connection::connect(addr_with_port, &self.inner.cfg, DemuxMap::new()).await {
+                match Connection::connect(
+                    addr_with_port,
+                    &self.inner.cfg,
+                    DemuxMap::new(),
+                    self.inner.metrics.clone(),
+                )
+                .await
+                {
                     Ok(conn) => {
                         *slot = Some(conn);
                     }
@@ -176,6 +179,7 @@ impl Handler {
                 Err(_) => {
                     attempts += 1;
                     if attempts >= 3 {
+                        self.inner.metrics.inc_backend_timeouts();
                         return Err(RZError::Timeout);
                     }
                     sleep(Duration::from_millis(50 * (attempts as u64 + 1))).await;

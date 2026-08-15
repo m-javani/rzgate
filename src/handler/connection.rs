@@ -6,7 +6,13 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
-use crate::{config::Config, error::RZError, handler::demux::DemuxMap, protocol::{build_keepalive_frame, drain_frame_async}};
+use crate::{
+    config::Config,
+    error::RZError,
+    handler::demux::DemuxMap,
+    metrics::MetricsRef,
+    protocol::{build_keepalive_frame, drain_frame_async},
+};
 
 use bytes::{Bytes, BytesMut};
 use std::sync::{
@@ -29,6 +35,13 @@ pub struct ConnectionInner {
     send_tx: mpsc::Sender<Vec<u8>>,
     corr_id: AtomicU32,
     closed: AtomicBool,
+    metrics: MetricsRef,
+}
+
+impl Drop for ConnectionInner {
+    fn drop(&mut self) {
+        self.metrics.dec_backend_connections();
+    }
 }
 
 impl Connection {
@@ -36,6 +49,7 @@ impl Connection {
         addr: String,
         cfg: &Config,
         demux: Arc<DemuxMap>,
+        metrics: MetricsRef,
     ) -> Result<Self, RZError> {
         let addrs = lookup_host(&addr)
             .await
@@ -57,11 +71,14 @@ impl Connection {
             send_tx: send_tx.clone(),
             corr_id: AtomicU32::new(1),
             closed: AtomicBool::new(false),
+            metrics: metrics.clone(),
         });
 
         let conn = Connection {
             inner: inner.clone(),
         };
+
+        metrics.inc_backend_connections();
 
         // Write loop
         let write_inner = inner.clone();

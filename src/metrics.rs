@@ -1,4 +1,4 @@
-use metrics::{Counter, counter};
+use metrics::{Counter, Gauge, counter, gauge};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use std::sync::Arc;
 
@@ -11,6 +11,8 @@ pub struct Metrics {
     bytes_received: Counter,
     bytes_sent: Counter,
     client_errors: Counter,
+    backend_timeouts: Counter,
+    backend_connections: Gauge,
 }
 
 impl Metrics {
@@ -25,7 +27,24 @@ impl Metrics {
             bytes_received: counter!("api_bytes_received_total"),
             bytes_sent: counter!("api_bytes_sent_total"),
             client_errors: counter!("api_client_errors_total"),
+            backend_timeouts: counter!("backend_timeouts_total"),
+            backend_connections: gauge!("backend_connections_current"),
         })
+    }
+
+    #[inline]
+    pub fn inc_backend_timeouts(&self) {
+        self.backend_timeouts.increment(1);
+    }
+
+    #[inline]
+    pub fn inc_backend_connections(&self) {
+        self.backend_connections.increment(1.0);
+    }
+
+    #[inline]
+    pub fn dec_backend_connections(&self) {
+        self.backend_connections.decrement(1.0);
     }
 
     #[inline]
