@@ -5,6 +5,7 @@ use rzgate::{
     handler::handler::Handler,
     metrics::{Metrics, MetricsRef},
     processor::get_codecs::process_get_codecs,
+    protocol::Codecs,
     server,
 };
 use tokio_util::sync::CancellationToken;
@@ -64,7 +65,7 @@ async fn async_main(cfg: Config) -> Result<(), RZError> {
     // Pass metrics to handler
     let handler = Handler::new(cfg.clone(), metrics.clone(), shutdown.clone());
 
-    let codecs = process_get_codecs(&handler).await?;
+    let codecs = get_codecs_with_retry(&handler, shutdown.clone()).await?;
     let _ = set_codecs(codecs)?;
 
     server::run(
@@ -75,4 +76,43 @@ async fn async_main(cfg: Config) -> Result<(), RZError> {
         shutdown,
     )
     .await
+}
+
+async fn get_codecs_with_retry(
+    handler: &Handler,
+    shutdown: CancellationToken,
+) -> Result<Codecs, RZError> {
+    let mut backoff = 1;
+    let max_backoff = 5;
+    let max_attempts = 60;
+
+    for attempt in 0..max_attempts {
+        tokio::select! {
+            _ = shutdown.cancelled() => {
+                return Err(RZError::Internal("Shutdown while waiting for codecs".into()));
+            }
+            result = process_get_codecs(handler) => {
+                match result {
+                    Ok(codecs) => {
+                        tracing::info!("Successfully retrieved codecs on attempt {}", attempt + 1);
+                        return Ok(codecs);
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            attempt = attempt + 1,
+                            error = %e,
+                            "Failed to get codecs, retrying in {}s",
+                            backoff
+                        );
+                        tokio::time::sleep(tokio::time::Duration::from_secs(backoff)).await;
+                        backoff = (backoff * 2).min(max_backoff);
+                    }
+                }
+            }
+        }
+    }
+
+    Err(RZError::Internal(
+        "Max attempts reached waiting for codecs".into(),
+    ))
 }
