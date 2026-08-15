@@ -1,3 +1,4 @@
+use crate::error::RZError;
 use crate::metrics::MetricsRef;
 use crate::protocol::invalid_response;
 use axum::http::{StatusCode, header};
@@ -202,13 +203,70 @@ pub fn decode_boolean_response(metrics: MetricsRef, payload: &Bytes, field_name:
 /// Handles any status other than "SUCCESS".
 /// Tries to extract a meaningful error message from the first field (id=1, type=0x01),
 /// otherwise falls back to generic status-based error.
+/// Handles any status other than "SUCCESS".
+/// Tries to extract a meaningful error message from the first field (id=1, type=0x01),
+/// otherwise falls back to generic status-based error.
 pub fn handle_non_success_status(
     metrics: MetricsRef,
     data: &[u8],
     status: &[u8],
     field_count: u16,
-    mut offset: usize,
+    offset: usize,
 ) -> Response {
+    // Try to extract error message using the shared function
+    let error_msg = match extract_error_message(data, field_count, offset) {
+        Ok(msg) => msg,
+        Err(_) => {
+            // If extraction fails, fallback to sanitized status
+            let mut clean: Vec<u8> = status
+                .iter()
+                .copied()
+                .filter(|b| *b >= 0x20 && *b <= 0x7E)
+                .collect();
+
+            if clean.is_empty() {
+                clean.extend_from_slice(b"UNKNOWN_ERROR");
+            }
+
+            String::from_utf8_lossy(&clean).to_string()
+        }
+    };
+
+    // Determine HTTP status code based on the error message
+    let status_code = match error_msg.as_str() {
+        "The requested segment was not found" => StatusCode::NOT_FOUND,
+        "Service is temporarily unavailable. Please try again later." => {
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+        "The request timed out. Please try again." => StatusCode::GATEWAY_TIMEOUT,
+        "An internal error occurred. Please try again later." => StatusCode::INTERNAL_SERVER_ERROR,
+        _ => StatusCode::BAD_REQUEST,
+    };
+
+    // Build JSON response
+    let mut json = Vec::with_capacity(64 + error_msg.len());
+    json.extend_from_slice(br#"{"status":"error","message":""#);
+    json.extend_from_slice(error_msg.as_bytes());
+    json.extend_from_slice(br#""}"#);
+
+    metrics.inc_client_errors();
+    metrics.add_bytes_sent(json.len() as u64);
+
+    (
+        status_code,
+        [(header::CONTENT_TYPE, "application/json")],
+        json,
+    )
+        .into_response()
+}
+
+/// Extracts error message from a non-success response.
+/// Returns the extracted message as a String, or an error if extraction fails.
+pub fn extract_error_message(
+    data: &[u8],
+    field_count: u16,
+    offset: usize,
+) -> Result<String, RZError> {
     // Try to extract message from first field
     if field_count >= 1 && offset + 7 <= data.len() {
         let field_id = u16::from_le_bytes([data[offset], data[offset + 1]]);
@@ -221,76 +279,34 @@ pub fn handle_non_success_status(
                 data[offset + 5],
                 data[offset + 6],
             ]) as usize;
-            offset += 7;
+            let msg_offset = offset + 7;
 
-            if offset + field_len <= data.len() {
-                let message = &data[offset..offset + field_len];
-                let msg: &[u8] = if message.is_empty() {
-                    b"UNKNOWN_ERROR"
-                } else {
-                    // Map router error codes to client-friendly messages
-                    match std::str::from_utf8(message) {
-                        Ok("404") => b"The requested segment was not found",
-                        Ok("503") => b"Service is temporarily unavailable. Please try again later.",
-                        Ok("408") => b"The request timed out. Please try again.",
-                        Ok("500") => b"An internal error occurred. Please try again later.",
-                        Ok(msg) => msg.as_bytes(), // Fallback to the actual message
-                        Err(_) => b"Invalid error response from server",
+            if msg_offset + field_len <= data.len() {
+                let message = &data[msg_offset..msg_offset + field_len];
+
+                if !message.is_empty() {
+                    // Try to parse as UTF-8
+                    if let Ok(msg_str) = std::str::from_utf8(message) {
+                        // Map known error codes to user-friendly messages
+                        let friendly_msg = match msg_str {
+                            "404" => "The requested segment was not found",
+                            "503" => "Service is temporarily unavailable. Please try again later.",
+                            "408" => "The request timed out. Please try again.",
+                            "500" => "An internal error occurred. Please try again later.",
+                            other => other, // Use the actual message
+                        };
+                        return Ok(friendly_msg.to_string());
+                    } else {
+                        // If not valid UTF-8, try to use as is or convert
+                        return Ok(String::from_utf8_lossy(message).to_string());
                     }
-                };
-
-                let mut json = Vec::with_capacity(64 + msg.len());
-                json.extend_from_slice(br#"{"status":"error","message":""#);
-                json.extend_from_slice(msg);
-                json.extend_from_slice(br#""}"#);
-
-                metrics.inc_client_errors();
-                metrics.add_bytes_sent(json.len() as u64);
-
-                // Map HTTP status codes too
-                let status_code = match std::str::from_utf8(message) {
-                    Ok("404") => StatusCode::NOT_FOUND,
-                    Ok("503") => StatusCode::SERVICE_UNAVAILABLE,
-                    Ok("408") => StatusCode::GATEWAY_TIMEOUT,
-                    Ok("500") => StatusCode::INTERNAL_SERVER_ERROR,
-                    _ => StatusCode::BAD_REQUEST,
-                };
-
-                return (
-                    status_code,
-                    [(header::CONTENT_TYPE, "application/json")],
-                    json,
-                )
-                    .into_response();
+                }
             }
         }
     }
 
-    // Fallback: sanitize status bytes and build error response
-    let mut clean: Vec<u8> = status
-        .iter()
-        .copied()
-        .filter(|b| *b >= 0x20 && *b <= 0x7E)
-        .collect();
-
-    if clean.is_empty() {
-        clean.extend_from_slice(b"UNKNOWN_ERROR");
-    }
-
-    let msg = &clean;
-
-    let mut json = Vec::with_capacity(64 + msg.len());
-    json.extend_from_slice(br#"{"status":"error","message":""#);
-    json.extend_from_slice(msg);
-    json.extend_from_slice(br#""}"#);
-
-    metrics.inc_client_errors();
-    metrics.add_bytes_sent(json.len() as u64);
-
-    (
-        StatusCode::BAD_REQUEST,
-        [(header::CONTENT_TYPE, "application/json")],
-        json,
-    )
-        .into_response()
+    // Fallback: return a generic error
+    Err(RZError::Internal(
+        "Failed to extract error message from response".into(),
+    ))
 }

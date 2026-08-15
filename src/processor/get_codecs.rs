@@ -9,7 +9,11 @@
 use bytes::Bytes;
 
 // Adjust these imports to match your project structure
-use crate::{error::RZError, handler::handler::Handler, protocol::Codecs};
+use crate::{
+    error::RZError,
+    handler::handler::Handler,
+    protocol::{Codecs, response::extract_error_message},
+};
 
 pub async fn process_get_codecs(handler: &Handler) -> Result<Codecs, RZError> {
     // Build payload: GETCODECS with 0 fields
@@ -48,14 +52,14 @@ pub fn decode_get_codecs_response(payload: &Bytes) -> Result<Codecs, RZError> {
 
     let mut offset = 1 + status_len + 2;
 
-    // --- Defensive check: must be SUCCESS ---
+    // --- Check for non-success status ---
     if status != b"SUCCESS" {
-        return Err(RZError::Internal(
-            format!("unexpected status: {}", String::from_utf8_lossy(status)).into(),
-        ));
+        // Try to extract error message from the first field
+        let error_msg = extract_error_message(data, field_count, offset)?;
+        return Err(RZError::Internal(error_msg));
     }
 
-    // --- Must have exactly 1 field ---
+    // --- Must have exactly 1 field for success ---
     if field_count != 1 {
         return Err(RZError::Internal(
             format!("expected exactly 1 field, got {}", field_count).into(),
