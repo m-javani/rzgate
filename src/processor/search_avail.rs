@@ -6,6 +6,7 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
+use crate::error::RZError;
 use crate::helper::{write_packed_date, write_quoted_property_id, write_rate_features_array};
 use crate::metrics::MetricsRef;
 use crate::protocol::invalid_response;
@@ -26,11 +27,16 @@ pub async fn process_search_avail(
     // Required fields
     let segment = match payload.get("segment").and_then(|v| v.as_str()) {
         Some(s) if !s.is_empty() => s,
-        _ => return error_response(metrics, "segment is required").await,
+        _ => {
+            return error_response(metrics, RZError::Validation("segment is required".into())).await;
+        }
     };
     let room_type = match payload.get("room_type").and_then(|v| v.as_str()) {
         Some(s) if !s.is_empty() => s,
-        _ => return error_response(metrics, "room_type is required").await,
+        _ => {
+            return error_response(metrics, RZError::Validation("room_type is required".into()))
+                .await;
+        }
     };
 
     // Optional fields
@@ -161,7 +167,7 @@ pub async fn process_search_avail(
 
     match handler.execute(seg, false, buf).await {
         Ok(field_data) => decode_search_avail_response(metrics, &field_data),
-        Err(e) => error_response(metrics, &e.to_string()).await,
+        Err(e) => error_response(metrics, e).await,
     }
 }
 

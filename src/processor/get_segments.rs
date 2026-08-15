@@ -6,6 +6,7 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
+use crate::error::RZError;
 use crate::metrics::MetricsRef;
 use crate::protocol::invalid_response;
 use crate::protocol::response::handle_non_success_status;
@@ -23,7 +24,7 @@ pub async fn process_get_segments(
 ) -> Response {
     // No fields expected in request — but we still validate it's an object (even empty)
     if !payload.is_object() {
-        return error_response(metrics, "invalid payload").await;
+        return error_response(metrics, RZError::Validation("invalid payload".into())).await;
     }
 
     // Build binary payload — no fields
@@ -38,7 +39,7 @@ pub async fn process_get_segments(
 
     match handler.execute("GETSEGMENTS", false, buf).await {
         Ok(field_data) => decode_get_segments_response(metrics, &field_data),
-        Err(e) => error_response(metrics, &e.to_string()).await,
+        Err(e) => error_response(metrics, e).await,
     }
 }
 fn decode_get_segments_response(metrics: MetricsRef, payload: &Bytes) -> Response {

@@ -6,6 +6,7 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
+use crate::error::RZError;
 use crate::helper::bytes_to_property_id;
 use crate::metrics::MetricsRef;
 use crate::protocol::invalid_response;
@@ -26,7 +27,7 @@ pub async fn process_search_prop(
     // extract, validate and build binary payload from fields
     let segment = match payload.get("segment").and_then(|v| v.as_str()) {
         Some(s) => s,
-        None => return error_response(metrics, "segment is required").await,
+        None => return error_response(metrics, RZError::Validation("segment is required".into())).await,
     };
     let area = payload.get("area").and_then(|v| v.as_str());
     let property_type = payload.get("property_type").and_then(|v| v.as_str());
@@ -102,7 +103,7 @@ pub async fn process_search_prop(
 
     match handler.execute(seg, false, buf).await {
         Ok(field_data) => decode_search_prop_response(metrics, &field_data),
-        Err(e) => error_response(metrics, &e.to_string()).await,
+        Err(e) => error_response(metrics, e).await,
     }
 }
 

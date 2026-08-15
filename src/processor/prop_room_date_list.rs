@@ -6,6 +6,7 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
+use crate::error::RZError;
 use crate::metrics::MetricsRef;
 use crate::protocol::invalid_response;
 use crate::protocol::response::handle_non_success_status;
@@ -25,11 +26,20 @@ pub async fn process_prop_room_date_list(
     // Required fields
     let property_id = match payload.get("property_id").and_then(|v| v.as_str()) {
         Some(s) if !s.is_empty() => s,
-        _ => return error_response(metrics, "property_id is required").await,
+        _ => {
+            return error_response(
+                metrics,
+                RZError::Validation("property_id is required".into()),
+            )
+            .await;
+        }
     };
     let room_type = match payload.get("room_type").and_then(|v| v.as_str()) {
         Some(s) if !s.is_empty() => s,
-        _ => return error_response(metrics, "room_type is required").await,
+        _ => {
+            return error_response(metrics, RZError::Validation("room_type is required".into()))
+                .await;
+        }
     };
 
     // Build binary payload
@@ -57,7 +67,7 @@ pub async fn process_prop_room_date_list(
 
     match handler.execute(seg, false, buf).await {
         Ok(field_data) => decode_prop_room_date_list_response(metrics, &field_data),
-        Err(e) => error_response(metrics, &e.to_string()).await,
+        Err(e) => error_response(metrics, e).await,
     }
 }
 

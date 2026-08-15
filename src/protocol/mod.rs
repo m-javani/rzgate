@@ -1,5 +1,6 @@
 pub mod response;
 
+use crate::error::RZError;
 use crate::metrics::MetricsRef;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
@@ -205,8 +206,27 @@ pub async fn drain_frame_async(
     Ok((hdr, payload))
 }
 
-pub async fn error_response(metrics: MetricsRef, message: &str) -> Response {
+fn build_error_message(error: RZError) -> String {
+    match error {
+        // Client errors - return the actual message
+        RZError::Validation(msg) => msg,
+
+        // Upstream/System errors - return generic user-friendly messages
+        RZError::RoomzinUnreachable(_) => {
+            "Service is temporarily unavailable. Please try again later.".into()
+        }
+        RZError::Network(_) => {
+            "Unable to reach the service. Please check your connection and retry.".into()
+        }
+        RZError::Timeout => "The request took too long. Please try again.".into(),
+        RZError::Internal(_) => "Something went wrong on our end. Please try again later.".into(),
+    }
+}
+
+pub async fn error_response(metrics: MetricsRef, error: RZError) -> Response {
     metrics.inc_client_errors();
+
+    let message = build_error_message(error);
 
     // We assume `message` is safe to embed (no user-controlled JSON escaping required)
     // If that ever changes, this function MUST be revisited.

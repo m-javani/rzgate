@@ -9,6 +9,7 @@
 use axum::response::Response;
 
 use crate::{
+    error::RZError,
     handler::handler::Handler,
     metrics::MetricsRef,
     processor::{
@@ -34,19 +35,23 @@ pub async fn process(body: &[u8], handler: &Handler, metrics: MetricsRef) -> Res
     // Parse only once, minimal overhead for 150B
     let json: Value = match from_slice(body) {
         Ok(v) => v,
-        Err(_) => return error_response(metrics, "Invalid JSON").await,
+        Err(_) => return error_response(metrics, RZError::Validation("Invalid JSON".into())).await,
     };
 
     // Get command with zero-copy reference
     let command = match json.get("command").and_then(|v| v.as_str()) {
         Some(cmd) => cmd,
-        None => return error_response(metrics, "Missing command field").await,
+        None => {
+            return error_response(metrics, RZError::Validation("Missing command field".into()))
+                .await;
+        }
     };
 
     let segment = match json.get("segment").and_then(|v| v.as_str()) {
         Some(s) => s,
         None => {
-            return error_response(metrics, "Missing segment field").await;
+            return error_response(metrics, RZError::Validation("Missing segment field".into()))
+                .await;
         }
     };
 
@@ -76,6 +81,6 @@ pub async fn process(body: &[u8], handler: &Handler, metrics: MetricsRef) -> Res
         "DELPROPDAY" => process_del_prop_day(segment, payload, handler, metrics).await,
         "GETSEGMENTS" => process_get_segments(payload, handler, metrics).await,
 
-        _ => error_response(metrics, "unsupported command").await,
+        _ => error_response(metrics, RZError::Validation("unsupported command".into())).await,
     }
 }

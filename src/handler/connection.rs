@@ -106,30 +106,7 @@ impl Connection {
                     None => break,
                 };
 
-                let field_data_start = 1 + hdr.status_len as usize + 2;
-
-                // Special error handling
-                let mut should_close = false;
-                if payload.len() >= field_data_start
-                    && &payload[1..1 + hdr.status_len as usize] == b"ERROR"
-                {
-                    if let Some(code) =
-                        std::str::from_utf8(&payload[field_data_start..field_data_start + 3]).ok()
-                    {
-                        match code {
-                            "308" | "405" | "503" => should_close = true,
-                            "429" => {}
-                            _ => {}
-                        }
-                    }
-                }
-
                 let _ = tx.send(Bytes::copy_from_slice(&payload));
-
-                if should_close {
-                    read_inner.closed.store(true, Ordering::Release);
-                    break;
-                }
             }
             read_inner.closed.store(true, Ordering::Release);
         });

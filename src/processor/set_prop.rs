@@ -6,6 +6,7 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
+use crate::error::RZError;
 use crate::metrics::MetricsRef;
 use crate::protocol::response::decode_simple_response;
 use crate::{handler::handler::Handler, protocol::error_response};
@@ -22,45 +23,79 @@ pub async fn process_set_prop(
     // extract, validate and build binary payload from fields
     let segment = match payload.get("segment").and_then(|v| v.as_str()) {
         Some(s) => s,
-        None => return error_response(metrics, "segment is required").await,
+        None => {
+            return error_response(metrics, RZError::Validation("segment is required".into()))
+                .await;
+        }
     };
 
     let area = match payload.get("area").and_then(|v| v.as_str()) {
         Some(a) => a,
-        None => return error_response(metrics, "area is required").await,
+        None => {
+            return error_response(metrics, RZError::Validation("area is required".into())).await;
+        }
     };
 
     let property_id = match payload.get("property_id").and_then(|v| v.as_str()) {
         Some(id) => id,
-        None => return error_response(metrics, "property_id is required").await,
+        None => {
+            return error_response(
+                metrics,
+                RZError::Validation("property_id is required".into()),
+            )
+            .await;
+        }
     };
 
     let property_type = match payload.get("property_type").and_then(|v| v.as_str()) {
         Some(t) => t,
-        None => return error_response(metrics, "property_type is required").await,
+        None => {
+            return error_response(
+                metrics,
+                RZError::Validation("property_type is required".into()),
+            )
+            .await;
+        }
     };
 
     let category = match payload.get("category").and_then(|v| v.as_str()) {
         Some(c) => c,
-        None => return error_response(metrics, "category is required").await,
+        None => {
+            return error_response(metrics, RZError::Validation("category is required".into()))
+                .await;
+        }
     };
 
     let stars = match payload.get("stars").and_then(|v| v.as_u64()) {
         Some(s) if s >= 1 && s <= 5 => s as u8,
-        _ => return error_response(metrics, "stars must be between 1 and 5").await,
+        _ => {
+            return error_response(
+                metrics,
+                RZError::Validation("stars must be between 1 and 5".into()),
+            )
+            .await;
+        }
     };
 
     let latitude = match payload.get("latitude").and_then(|v| v.as_f64()) {
         Some(lat) if lat >= -90.0 && lat <= 90.0 => lat,
         _ => {
-            return error_response(metrics, "latitude must be between -90 and 90").await;
+            return error_response(
+                metrics,
+                RZError::Validation("latitude must be between -90 and 90".into()),
+            )
+            .await;
         }
     };
 
     let longitude = match payload.get("longitude").and_then(|v| v.as_f64()) {
         Some(lon) if lon >= -180.0 && lon <= 180.0 => lon,
         _ => {
-            return error_response(metrics, "longitude must be between -180 and 180").await;
+            return error_response(
+                metrics,
+                RZError::Validation("longitude must be between -180 and 180".into()),
+            )
+            .await;
         }
     };
 
@@ -112,7 +147,7 @@ pub async fn process_set_prop(
 
     match handler.execute(seg, true, buf).await {
         Ok(field_data) => decode_set_prop_response(metrics, &field_data),
-        Err(e) => error_response(metrics, &e.to_string()).await,
+        Err(e) => error_response(metrics, e).await,
     }
 }
 

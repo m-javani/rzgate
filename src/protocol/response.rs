@@ -130,11 +130,7 @@ pub fn decode_scalar_u8_response(
 /// Expected formats:
 /// - SUCCESS + 1 field (id=1, type=0x02, len=1, value=0 or 1) → {"status":"success","<field_name>":true/false}
 /// - ERROR   + 1 field (id=1, type=0x01)                          → {"status":"error","message":"..."}
-pub fn decode_boolean_response(
-    metrics: MetricsRef,
-    payload: &Bytes,
-    field_name: &str,
-) -> Response {
+pub fn decode_boolean_response(metrics: MetricsRef, payload: &Bytes, field_name: &str) -> Response {
     let data = payload.as_ref();
 
     if data.is_empty() {
@@ -229,10 +225,18 @@ pub fn handle_non_success_status(
 
             if offset + field_len <= data.len() {
                 let message = &data[offset..offset + field_len];
-                let msg = if message.is_empty() {
+                let msg: &[u8] = if message.is_empty() {
                     b"UNKNOWN_ERROR"
                 } else {
-                    message
+                    // Map router error codes to client-friendly messages
+                    match std::str::from_utf8(message) {
+                        Ok("404") => b"The requested segment was not found",
+                        Ok("503") => b"Service is temporarily unavailable. Please try again later.",
+                        Ok("408") => b"The request timed out. Please try again.",
+                        Ok("500") => b"An internal error occurred. Please try again later.",
+                        Ok(msg) => msg.as_bytes(), // Fallback to the actual message
+                        Err(_) => b"Invalid error response from server",
+                    }
                 };
 
                 let mut json = Vec::with_capacity(64 + msg.len());
@@ -243,8 +247,17 @@ pub fn handle_non_success_status(
                 metrics.inc_client_errors();
                 metrics.add_bytes_sent(json.len() as u64);
 
+                // Map HTTP status codes too
+                let status_code = match std::str::from_utf8(message) {
+                    Ok("404") => StatusCode::NOT_FOUND,
+                    Ok("503") => StatusCode::SERVICE_UNAVAILABLE,
+                    Ok("408") => StatusCode::GATEWAY_TIMEOUT,
+                    Ok("500") => StatusCode::INTERNAL_SERVER_ERROR,
+                    _ => StatusCode::BAD_REQUEST,
+                };
+
                 return (
-                    StatusCode::BAD_REQUEST,
+                    status_code,
                     [(header::CONTENT_TYPE, "application/json")],
                     json,
                 )
@@ -253,7 +266,6 @@ pub fn handle_non_success_status(
         }
     }
 
-    // Fallback: sanitize status bytes and build error response
     // Fallback: sanitize status bytes and build error response
     let mut clean: Vec<u8> = status
         .iter()
