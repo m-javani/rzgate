@@ -6,28 +6,27 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
-use crate::metrics::MetricsEvent;
+use crate::metrics::MetricsRef;
 use crate::protocol::response::decode_simple_response;
 use crate::{handler::handler::Handler, protocol::error_response};
 use axum::response::Response;
 use bytes::Bytes;
 use serde_json::Value;
-use tokio::sync::mpsc::Sender;
 
 pub async fn process_del_prop_room(
     seg: &str,
     payload: &Value,
     handler: &Handler,
-    metrics_tx: Sender<MetricsEvent>,
+    metrics: MetricsRef,
 ) -> Response {
     // Required fields
     let property_id = match payload.get("property_id").and_then(|v| v.as_str()) {
         Some(s) if !s.is_empty() => s,
-        _ => return error_response(metrics_tx.clone(), "property_id is required").await,
+        _ => return error_response(metrics, "property_id is required").await,
     };
     let room_type = match payload.get("room_type").and_then(|v| v.as_str()) {
         Some(s) if !s.is_empty() => s,
-        _ => return error_response(metrics_tx.clone(), "room_type is required").await,
+        _ => return error_response(metrics, "room_type is required").await,
     };
 
     // Build binary payload
@@ -53,11 +52,11 @@ pub async fn process_del_prop_room(
     buf.extend_from_slice(room_type.as_bytes());
 
     match handler.execute(seg, true, buf).await {
-        Ok(field_data) => decode_del_prop_room_response(metrics_tx.clone(), &field_data),
-        Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
+        Ok(field_data) => decode_del_prop_room_response(metrics, &field_data),
+        Err(e) => error_response(metrics, &e.to_string()).await,
     }
 }
 
-fn decode_del_prop_room_response(metrics_tx: Sender<MetricsEvent>, payload: &Bytes) -> Response {
-    decode_simple_response(metrics_tx, payload)
+fn decode_del_prop_room_response(metrics: MetricsRef, payload: &Bytes) -> Response {
+    decode_simple_response(metrics, payload)
 }

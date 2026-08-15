@@ -10,7 +10,7 @@
 use bytes::Bytes;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc::Sender;
+
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -19,7 +19,7 @@ use crate::config::{Config, Mode};
 use crate::error::RZError;
 use crate::handler::connection::Connection;
 use crate::handler::demux::DemuxMap;
-use crate::metrics::MetricsEvent;
+use crate::metrics::MetricsRef;
 use crate::protocol::{prepend_header, prepend_router_header};
 
 pub struct Handler {
@@ -33,7 +33,7 @@ struct HandlerInner {
     mode: Mode,
     connections: Arc<RwLock<Vec<Option<Connection>>>>,
     #[allow(unused)]
-    metrics_tx: Sender<MetricsEvent>,
+    metrics: MetricsRef,
     cancel_token: CancellationToken,
     next_conn: Mutex<usize>,
 }
@@ -41,7 +41,7 @@ struct HandlerInner {
 impl Handler {
     pub fn new(
         cfg: Config,
-        metrics_tx: Sender<MetricsEvent>,
+        metrics: MetricsRef,
         cancel_token: CancellationToken,
     ) -> Arc<Self> {
         let conn_count = cfg.conn_per_node;
@@ -60,7 +60,7 @@ impl Handler {
                 target_port,
                 mode,
                 connections: Arc::new(RwLock::new(conns)),
-                metrics_tx: metrics_tx.clone(),
+                metrics: metrics,
                 cancel_token: cancel_token.clone(),
                 next_conn: Mutex::new(0),
             }),

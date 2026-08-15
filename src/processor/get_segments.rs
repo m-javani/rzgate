@@ -6,7 +6,7 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
-use crate::metrics::MetricsEvent;
+use crate::metrics::MetricsRef;
 use crate::protocol::invalid_response;
 use crate::protocol::response::handle_non_success_status;
 use crate::{handler::handler::Handler, protocol::error_response};
@@ -15,16 +15,15 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use bytes::Bytes;
 use serde_json::Value;
-use tokio::sync::mpsc::Sender;
 
 pub async fn process_get_segments(
     payload: &Value,
     handler: &Handler,
-    metrics_tx: Sender<MetricsEvent>,
+    metrics: MetricsRef,
 ) -> Response {
     // No fields expected in request — but we still validate it's an object (even empty)
     if !payload.is_object() {
-        return error_response(metrics_tx.clone(), "invalid payload").await;
+        return error_response(metrics, "invalid payload").await;
     }
 
     // Build binary payload — no fields
@@ -38,11 +37,11 @@ pub async fn process_get_segments(
     buf.extend_from_slice(&0u16.to_le_bytes());
 
     match handler.execute("GETSEGMENTS", false, buf).await {
-        Ok(field_data) => decode_get_segments_response(metrics_tx.clone(), &field_data),
-        Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
+        Ok(field_data) => decode_get_segments_response(metrics, &field_data),
+        Err(e) => error_response(metrics, &e.to_string()).await,
     }
 }
-fn decode_get_segments_response(metrics_tx: Sender<MetricsEvent>, payload: &Bytes) -> Response {
+fn decode_get_segments_response(metrics: MetricsRef, payload: &Bytes) -> Response {
     let data = payload.as_ref();
 
     if data.is_empty() {
@@ -62,13 +61,7 @@ fn decode_get_segments_response(metrics_tx: Sender<MetricsEvent>, payload: &Byte
 
     let offset_after_header = 1 + status_len + 2;
     if status != b"SUCCESS" {
-        return handle_non_success_status(
-            metrics_tx.clone(),
-            data,
-            status,
-            field_count,
-            offset_after_header,
-        );
+        return handle_non_success_status(metrics, data, status, field_count, offset_after_header);
     }
 
     // --- SUCCESS: empty result ---
@@ -165,7 +158,7 @@ fn decode_get_segments_response(metrics_tx: Sender<MetricsEvent>, payload: &Byte
 
     json.extend_from_slice(br#"]}"#);
 
-    let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(json.len() as u64));
+    metrics.add_bytes_sent(json.len() as u64);
 
     (
         StatusCode::OK,

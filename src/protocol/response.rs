@@ -1,9 +1,8 @@
-use crate::metrics::MetricsEvent;
+use crate::metrics::MetricsRef;
 use crate::protocol::invalid_response;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::response::Response;
-use tokio::sync::mpsc::Sender;
 
 use bytes::Bytes;
 
@@ -11,7 +10,7 @@ use bytes::Bytes;
 /// - SUCCESS with 0 fields → success JSON
 /// - ERROR with exactly one field (id=1, type=0x01 string) → error JSON with message
 /// Returns appropriate Response, or invalid_response() on protocol errors
-pub fn decode_simple_response(metrics_tx: Sender<MetricsEvent>, payload: &Bytes) -> Response {
+pub fn decode_simple_response(metrics: MetricsRef, payload: &Bytes) -> Response {
     let data = payload.as_ref();
 
     if data.is_empty() {
@@ -30,13 +29,13 @@ pub fn decode_simple_response(metrics_tx: Sender<MetricsEvent>, payload: &Bytes)
     let offset = 1 + status_len + 2;
 
     if status != b"SUCCESS" {
-        return handle_non_success_status(metrics_tx.clone(), data, status, field_count, offset);
+        return handle_non_success_status(metrics, data, status, field_count, offset);
     }
 
     // SUCCESS + 0 fields only
     if field_count == 0 {
         let rsp = br#"{"status":"success"}"#;
-        let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(rsp.len() as u64));
+        metrics.add_bytes_sent(rsp.len() as u64);
         return (
             StatusCode::OK,
             [(header::CONTENT_TYPE, "application/json")],
@@ -56,7 +55,7 @@ pub fn decode_simple_response(metrics_tx: Sender<MetricsEvent>, payload: &Bytes)
 ///
 /// The JSON field name for the value can be customized (e.g. "availability", "rate_feature_mask", etc.)
 pub fn decode_scalar_u8_response(
-    metrics_tx: Sender<MetricsEvent>,
+    metrics: MetricsRef,
     payload: &Bytes,
     value_field_name: &str,
 ) -> Response {
@@ -78,7 +77,7 @@ pub fn decode_scalar_u8_response(
     let mut offset = 1 + status_len + 2;
 
     if status != b"SUCCESS" {
-        return handle_non_success_status(metrics_tx.clone(), data, status, field_count, offset);
+        return handle_non_success_status(metrics, data, status, field_count, offset);
     }
 
     if field_count != 1 {
@@ -117,7 +116,7 @@ pub fn decode_scalar_u8_response(
     json.extend_from_slice(&value.to_string().into_bytes());
     json.push(b'}');
 
-    let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(json.len() as u64));
+    metrics.add_bytes_sent(json.len() as u64);
 
     (
         StatusCode::OK,
@@ -132,7 +131,7 @@ pub fn decode_scalar_u8_response(
 /// - SUCCESS + 1 field (id=1, type=0x02, len=1, value=0 or 1) → {"status":"success","<field_name>":true/false}
 /// - ERROR   + 1 field (id=1, type=0x01)                          → {"status":"error","message":"..."}
 pub fn decode_boolean_response(
-    metrics_tx: Sender<MetricsEvent>,
+    metrics: MetricsRef,
     payload: &Bytes,
     field_name: &str,
 ) -> Response {
@@ -154,7 +153,7 @@ pub fn decode_boolean_response(
     let mut offset = 1 + status_len + 2;
 
     if status != b"SUCCESS" {
-        return handle_non_success_status(metrics_tx.clone(), data, status, field_count, offset);
+        return handle_non_success_status(metrics, data, status, field_count, offset);
     }
 
     if field_count != 1 {
@@ -194,7 +193,7 @@ pub fn decode_boolean_response(
     json.extend_from_slice(boolean_slice);
     json.push(b'}');
 
-    let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(json.len() as u64));
+    metrics.add_bytes_sent(json.len() as u64);
 
     (
         StatusCode::OK,
@@ -208,7 +207,7 @@ pub fn decode_boolean_response(
 /// Tries to extract a meaningful error message from the first field (id=1, type=0x01),
 /// otherwise falls back to generic status-based error.
 pub fn handle_non_success_status(
-    metrics_tx: Sender<MetricsEvent>,
+    metrics: MetricsRef,
     data: &[u8],
     status: &[u8],
     field_count: u16,
@@ -241,8 +240,8 @@ pub fn handle_non_success_status(
                 json.extend_from_slice(msg);
                 json.extend_from_slice(br#""}"#);
 
-                let _ = metrics_tx.try_send(MetricsEvent::ApiIncClientErrors);
-                let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(json.len() as u64));
+                metrics.inc_client_errors();
+                metrics.add_bytes_sent(json.len() as u64);
 
                 return (
                     StatusCode::BAD_REQUEST,
@@ -273,8 +272,8 @@ pub fn handle_non_success_status(
     json.extend_from_slice(msg);
     json.extend_from_slice(br#""}"#);
 
-    let _ = metrics_tx.try_send(MetricsEvent::ApiIncClientErrors);
-    let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(json.len() as u64));
+    metrics.inc_client_errors();
+    metrics.add_bytes_sent(json.len() as u64);
 
     (
         StatusCode::BAD_REQUEST,

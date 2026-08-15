@@ -1,10 +1,9 @@
 pub mod response;
 
-use crate::metrics::MetricsEvent;
+use crate::metrics::MetricsRef;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::response::Response;
-use tokio::sync::mpsc::Sender;
 
 use bytes::{Bytes, BytesMut};
 use thiserror::Error;
@@ -206,8 +205,8 @@ pub async fn drain_frame_async(
     Ok((hdr, payload))
 }
 
-pub async fn error_response(metrics_tx: Sender<MetricsEvent>, message: &str) -> Response {
-    let _ = metrics_tx.try_send(MetricsEvent::ApiIncClientErrors);
+pub async fn error_response(metrics: MetricsRef, message: &str) -> Response {
+    metrics.inc_client_errors();
 
     // We assume `message` is safe to embed (no user-controlled JSON escaping required)
     // If that ever changes, this function MUST be revisited.

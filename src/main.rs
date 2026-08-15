@@ -3,12 +3,10 @@ use rzgate::{
     config::Config,
     error::RZError,
     handler::handler::Handler,
-    metrics::{Metrics, MetricsEvent},
+    metrics::{Metrics, MetricsRef},
     processor::get_codecs::process_get_codecs,
     server,
 };
-use std::sync::Arc;
-use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing_subscriber::fmt::time::UtcTime;
@@ -60,24 +58,21 @@ async fn async_main(cfg: Config) -> Result<(), RZError> {
         shutdown_clone.cancel();
     });
 
-    let (metrics_tx, metrics_rx) = tokio::sync::mpsc::channel::<MetricsEvent>(cfg.max_active_conns);
+    // Create metrics once and pass it down
+    let metrics: MetricsRef = Metrics::new();
 
-    let handler = Handler::new(cfg.clone(), metrics_tx.clone(), shutdown.clone());
-    sleep(tokio::time::Duration::from_secs(1)).await;
+    // Pass metrics to handler
+    let handler = Handler::new(cfg.clone(), metrics.clone(), shutdown.clone());
 
     let codecs = process_get_codecs(&handler).await?;
     let _ = set_codecs(codecs)?;
 
-    let metrics = Arc::new(Metrics::new());
-
     server::run(
         handler,
+        metrics,
         cfg.listening_addr,
         cfg.http_port,
         shutdown,
-        metrics_rx,
-        metrics_tx,
-        metrics,
     )
     .await
 }

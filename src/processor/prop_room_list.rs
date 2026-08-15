@@ -6,7 +6,7 @@
 // // Use of this software is governed by the Business Source License 1.1
 // // included in the LICENSE file in the root of this repository.
 
-use crate::metrics::MetricsEvent;
+use crate::metrics::MetricsRef;
 use crate::protocol::invalid_response;
 use crate::protocol::response::handle_non_success_status;
 use crate::{handler::handler::Handler, protocol::error_response};
@@ -15,18 +15,17 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use bytes::Bytes;
 use serde_json::Value;
-use tokio::sync::mpsc::Sender;
 
 pub async fn process_prop_room_list(
     seg: &str,
     payload: &Value,
     handler: &Handler,
-    metrics_tx: Sender<MetricsEvent>,
+    metrics: MetricsRef,
 ) -> Response {
     // Required field
     let property_id = match payload.get("property_id").and_then(|v| v.as_str()) {
         Some(s) if !s.is_empty() => s,
-        _ => return error_response(metrics_tx.clone(), "property_id is required").await,
+        _ => return error_response(metrics, "property_id is required").await,
     };
 
     // Build binary payload
@@ -47,12 +46,12 @@ pub async fn process_prop_room_list(
     buf.extend_from_slice(property_id.as_bytes());
 
     match handler.execute(seg, false, buf).await {
-        Ok(field_data) => decode_prop_room_list_response(metrics_tx.clone(), &field_data),
-        Err(e) => error_response(metrics_tx.clone(), &e.to_string()).await,
+        Ok(field_data) => decode_prop_room_list_response(metrics, &field_data),
+        Err(e) => error_response(metrics, &e.to_string()).await,
     }
 }
 
-fn decode_prop_room_list_response(metrics_tx: Sender<MetricsEvent>, payload: &Bytes) -> Response {
+fn decode_prop_room_list_response(metrics: MetricsRef, payload: &Bytes) -> Response {
     let data = payload.as_ref();
 
     if data.is_empty() {
@@ -72,19 +71,13 @@ fn decode_prop_room_list_response(metrics_tx: Sender<MetricsEvent>, payload: &By
 
     let offset_after_header = 1 + status_len + 2;
     if status != b"SUCCESS" {
-        return handle_non_success_status(
-            metrics_tx.clone(),
-            data,
-            status,
-            field_count,
-            offset_after_header,
-        );
+        return handle_non_success_status(metrics, data, status, field_count, offset_after_header);
     }
 
     // --- SUCCESS: parse list of room types ---
     if field_count == 0 {
         let rsp = br#"{"status":"success","room_types":[]}"#;
-        let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesSent(rsp.len() as u64));
+        metrics.add_bytes_sent(rsp.len() as u64);
 
         return (
             StatusCode::OK,

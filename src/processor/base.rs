@@ -7,10 +7,11 @@
 // // included in the LICENSE file in the root of this repository.
 
 use axum::response::Response;
-use tokio::sync::mpsc::Sender;
 
 use crate::{
-    handler::handler::Handler, metrics::MetricsEvent, processor::{
+    handler::handler::Handler,
+    metrics::MetricsRef,
+    processor::{
         dec_room_avl::process_dec_room_avl, del_prop::process_del_prop,
         del_prop_day::process_del_prop_day, del_prop_room::process_del_prop_room,
         del_room_day::process_del_room_day, del_segment::process_del_segment,
@@ -20,33 +21,32 @@ use crate::{
         prop_room_list::process_prop_room_list, search_avail::process_search_avail,
         search_prop::process_search_prop, set_prop::process_set_prop,
         set_room_avl::process_set_room_avl, set_room_pkg::process_set_room_pkg,
-    }, protocol::error_response,
+    },
+    protocol::error_response,
 };
 
 use serde_json::{Value, from_slice};
 
-
-
-pub async fn process(body: &[u8], handler: &Handler, metrics_tx: Sender<MetricsEvent>) -> Response {
-    let _ = metrics_tx.try_send(MetricsEvent::ApiIncCommands);
-    let _ = metrics_tx.try_send(MetricsEvent::ApiAddBytesReceived(body.len() as u64));
+pub async fn process(body: &[u8], handler: &Handler, metrics: MetricsRef) -> Response {
+    metrics.inc_commands();
+    metrics.add_bytes_received(body.len() as u64);
 
     // Parse only once, minimal overhead for 150B
     let json: Value = match from_slice(body) {
         Ok(v) => v,
-        Err(_) => return error_response(metrics_tx.clone(), "Invalid JSON").await,
+        Err(_) => return error_response(metrics, "Invalid JSON").await,
     };
 
     // Get command with zero-copy reference
     let command = match json.get("command").and_then(|v| v.as_str()) {
         Some(cmd) => cmd,
-        None => return error_response(metrics_tx.clone(), "Missing command field").await,
+        None => return error_response(metrics, "Missing command field").await,
     };
 
     let segment = match json.get("segment").and_then(|v| v.as_str()) {
         Some(s) => s,
         None => {
-            return error_response(metrics_tx.clone(), "Missing segment field").await;
+            return error_response(metrics, "Missing segment field").await;
         }
     };
 
@@ -54,37 +54,28 @@ pub async fn process(body: &[u8], handler: &Handler, metrics_tx: Sender<MetricsE
     let payload = json.get("body").unwrap_or(&Value::Null);
 
     match command.as_ref() {
-        "SETPROP" => process_set_prop(segment, payload, handler, metrics_tx.clone()).await,
-        "PROPEXIST" => process_prop_exist(segment, payload, handler, metrics_tx.clone()).await,
-        "SEARCHPROP" => process_search_prop(segment, payload, handler, metrics_tx.clone()).await,
+        "SETPROP" => process_set_prop(segment, payload, handler, metrics).await,
+        "PROPEXIST" => process_prop_exist(segment, payload, handler, metrics).await,
+        "SEARCHPROP" => process_search_prop(segment, payload, handler, metrics).await,
 
-        "SETROOMPKG" => process_set_room_pkg(segment, payload, handler, metrics_tx.clone()).await,
-        "SETROOMAVL" => process_set_room_avl(segment, payload, handler, metrics_tx.clone()).await,
-        "INCROOMAVL" => process_inc_room_avl(segment, payload, handler, metrics_tx.clone()).await,
-        "DECROOMAVL" => process_dec_room_avl(segment, payload, handler, metrics_tx.clone()).await,
-        "DELROOMDAY" => process_del_room_day(segment, payload, handler, metrics_tx.clone()).await,
-        "PROPROOMEXIST" => {
-            process_prop_room_exist(segment, payload, handler, metrics_tx.clone()).await
-        }
-        "GETPROPROOMDAY" => {
-            process_get_prop_room_day(segment, payload, handler, metrics_tx.clone()).await
-        }
-        "PROPROOMDATELIST" => {
-            process_prop_room_date_list(segment, payload, handler, metrics_tx.clone()).await
-        }
-        "DELPROPROOM" => process_del_prop_room(segment, payload, handler, metrics_tx.clone()).await,
+        "SETROOMPKG" => process_set_room_pkg(segment, payload, handler, metrics).await,
+        "SETROOMAVL" => process_set_room_avl(segment, payload, handler, metrics).await,
+        "INCROOMAVL" => process_inc_room_avl(segment, payload, handler, metrics).await,
+        "DECROOMAVL" => process_dec_room_avl(segment, payload, handler, metrics).await,
+        "DELROOMDAY" => process_del_room_day(segment, payload, handler, metrics).await,
+        "PROPROOMEXIST" => process_prop_room_exist(segment, payload, handler, metrics).await,
+        "GETPROPROOMDAY" => process_get_prop_room_day(segment, payload, handler, metrics).await,
+        "PROPROOMDATELIST" => process_prop_room_date_list(segment, payload, handler, metrics).await,
+        "DELPROPROOM" => process_del_prop_room(segment, payload, handler, metrics).await,
 
-        "SEARCHAVAIL" => process_search_avail(segment, payload, handler, metrics_tx.clone()).await,
+        "SEARCHAVAIL" => process_search_avail(segment, payload, handler, metrics).await,
 
-        "PROPROOMLIST" => {
-            process_prop_room_list(segment, payload, handler, metrics_tx.clone()).await
-        }
-        "DELPROP" => process_del_prop(segment, payload, handler, metrics_tx.clone()).await,
-        "DELSEGMENT" => process_del_segment(segment, payload, handler, metrics_tx.clone()).await,
-        "DELPROPDAY" => process_del_prop_day(segment, payload, handler, metrics_tx.clone()).await,
-        "GETSEGMENTS" => process_get_segments(payload, handler, metrics_tx.clone()).await,
+        "PROPROOMLIST" => process_prop_room_list(segment, payload, handler, metrics).await,
+        "DELPROP" => process_del_prop(segment, payload, handler, metrics).await,
+        "DELSEGMENT" => process_del_segment(segment, payload, handler, metrics).await,
+        "DELPROPDAY" => process_del_prop_day(segment, payload, handler, metrics).await,
+        "GETSEGMENTS" => process_get_segments(payload, handler, metrics).await,
 
-        _ => error_response(metrics_tx.clone(), "unsupported command").await,
+        _ => error_response(metrics, "unsupported command").await,
     }
 }
-
