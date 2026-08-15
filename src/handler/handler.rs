@@ -32,7 +32,6 @@ struct HandlerInner {
     target_port: u16,
     mode: Mode,
     connections: Arc<RwLock<Vec<Option<Connection>>>>,
-    #[allow(unused)]
     metrics: MetricsRef,
     cancel_token: CancellationToken,
     next_conn: Mutex<usize>,
