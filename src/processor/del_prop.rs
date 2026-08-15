@@ -7,7 +7,7 @@
 // // included in the LICENSE file in the root of this repository.
 
 use crate::metrics::MetricsEvent;
-use crate::protocol::decode_simple_response;
+use crate::protocol::response::decode_simple_response;
 use crate::{handler::handler::Handler, protocol::error_response};
 use axum::response::Response;
 use bytes::Bytes;

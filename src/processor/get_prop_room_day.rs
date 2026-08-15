@@ -8,7 +8,8 @@
 
 use crate::helper::{bitmask_to_rate_feature_strings, bytes_to_property_id};
 use crate::metrics::MetricsEvent;
-use crate::protocol::{handle_non_success_status, invalid_response};
+use crate::protocol::invalid_response;
+use crate::protocol::response::handle_non_success_status;
 use crate::{handler::handler::Handler, protocol::error_response};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
