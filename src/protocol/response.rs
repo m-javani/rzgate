@@ -293,7 +293,7 @@ pub fn extract_error_message(
                             "503" => "Service is temporarily unavailable. Please try again later.",
                             "408" => "The request timed out. Please try again.",
                             "500" => "An internal error occurred. Please try again later.",
-                            other => other, // Use the actual message
+                            other => other,
                         };
                         return Ok(friendly_msg.to_string());
                     } else {
