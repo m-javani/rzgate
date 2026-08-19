@@ -61,7 +61,7 @@ Thumbs.db
 
 perf.data
 perf.*
-rzgate
+rzproxy
 
 # Certificates and keys
 *.pem

@@ -10,7 +10,7 @@ use tokio::time::sleep;
 // CONFIGURATION
 // ============================================================================
 
-const RZGATE_URL: &str = "http://127.0.0.1:8777/api";
+const RZProxy_URL: &str = "http://127.0.0.1:8777/api";
 const TIMEOUT_SECS: u64 = 30;
 
 // Test data parameters - matches smoke.go
@@ -25,14 +25,14 @@ const SHARD_IDX: u32 = 1;
 // ============================================================================
 
 #[derive(Debug, Serialize)]
-struct RzGateRequest {
+struct RzProxyRequest {
     command: String,
     segment: String,
     body: HashMap<String, Value>,
 }
 
 #[derive(Debug, Deserialize)]
-struct RzGateResponse {
+struct RzProxyResponse {
     status: String,
     #[serde(default)]
     _data: Option<HashMap<String, Value>>,
@@ -42,19 +42,19 @@ struct RzGateResponse {
 // HTTP CLIENT WITH RETRY
 // ============================================================================
 
-struct RzGateClient {
+struct RzProxyClient {
     url: String,
     client: reqwest::Client,
 }
 
-impl RzGateClient {
+impl RzProxyClient {
     fn new(url: String) -> Self {
         let client = reqwest::Client::builder()
             .timeout(StdDuration::from_secs(TIMEOUT_SECS))
             .build()
             .expect("Failed to build HTTP client");
 
-        RzGateClient { url, client }
+        RzProxyClient { url, client }
     }
 
     async fn do_request(
@@ -62,8 +62,8 @@ impl RzGateClient {
         cmd: &str,
         segment: &str,
         body: HashMap<String, Value>,
-    ) -> Result<RzGateResponse, String> {
-        let req = RzGateRequest {
+    ) -> Result<RzProxyResponse, String> {
+        let req = RzProxyRequest {
             command: cmd.to_string(),
             segment: segment.to_string(),
             body,
@@ -92,7 +92,7 @@ impl RzGateClient {
 
             match response {
                 Ok(resp) => {
-                    let result: RzGateResponse = resp
+                    let result: RzProxyResponse = resp
                         .json()
                         .await
                         .map_err(|e| format!("Failed to parse response: {}", e))?;
@@ -168,7 +168,7 @@ impl BenchResult {
 
     fn print_summary(&self) {
         println!("\n{}", "=".repeat(61));
-        println!("  RZGATE HTTP BENCHMARK SUMMARY");
+        println!("  RZProxy HTTP BENCHMARK SUMMARY");
         println!("{}", "=".repeat(61));
 
         let mut total_time = StdDuration::from_secs(0);
@@ -202,11 +202,11 @@ impl BenchResult {
 }
 
 // ============================================================================
-// TEST RZGATE HEALTH
+// TEST RZProxy HEALTH
 // ============================================================================
 
-async fn test_rzgate_health(url: &str) -> Result<(), String> {
-    println!("Testing RzGate connection...");
+async fn test_rzproxy_health(url: &str) -> Result<(), String> {
+    println!("Testing RzProxy connection...");
 
     let health_url = url.replace("/api", "/health");
     let client = reqwest::Client::builder()
@@ -224,7 +224,7 @@ async fn test_rzgate_health(url: &str) -> Result<(), String> {
         return Err(format!("Health check returned {}", response.status()));
     }
 
-    println!("✅ RzGate is healthy");
+    println!("✅ RzProxy is healthy");
     Ok(())
 }
 
@@ -234,14 +234,14 @@ async fn test_rzgate_health(url: &str) -> Result<(), String> {
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    let client = RzGateClient::new(RZGATE_URL.to_string());
+    let client = RzProxyClient::new(RZProxy_URL.to_string());
 
-    println!("=== RzGate HTTP Benchmark ===");
-    println!("URL: {}\n", RZGATE_URL);
+    println!("=== RzProxy HTTP Benchmark ===");
+    println!("URL: {}\n", RZProxy_URL);
 
-    // Check if RzGate is running
-    if let Err(e) = test_rzgate_health(RZGATE_URL).await {
-        eprintln!("RzGate not available: {}", e);
+    // Check if RzProxy is running
+    if let Err(e) = test_rzproxy_health(RZProxy_URL).await {
+        eprintln!("RzProxy not available: {}", e);
         return Err(e);
     }
 

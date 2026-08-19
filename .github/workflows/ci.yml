@@ -1,7 +1,7 @@
 # // SPDX-License-Identifier: BUSL-1.1
 # // Copyright (c) 2026 M. Javani
 # //
-# // This file is part of rzgate.
+# // This file is part of rzproxy.
 # //
 # // Use of this software is governed by the Business Source License 1.1
 # // included in the LICENSE file in the root of this repository.
@@ -62,8 +62,8 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rzgate
-          path: target/release/rzgate
+          name: rzproxy
+          path: target/release/rzproxy
 
   docker:
     name: Docker Build & Push
@@ -77,14 +77,14 @@ jobs:
       - name: Download binary
         uses: actions/download-artifact@v4
         with:
-          name: rzgate
+          name: rzproxy
           path: .                     # download directly to root
 
       - name: Verify binary
         run: |
-          ls -la rzgate
-          chmod +x rzgate
-          file rzgate   # should show Linux executable
+          ls -la rzproxy
+          chmod +x rzproxy
+          file rzproxy   # should show Linux executable
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -99,7 +99,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/rzgate
+          images: ${{ secrets.DOCKER_USERNAME }}/rzproxy
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag

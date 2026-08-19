@@ -4,9 +4,9 @@ use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 
-use rzgate::config::Config;
-use rzgate::error::RZError;
-use rzgate::{async_main, init_logging};
+use rzproxy::config::Config;
+use rzproxy::error::RZError;
+use rzproxy::{async_main, init_logging};
 
 pub struct TestHelper {
     http_addr: String,
@@ -26,7 +26,7 @@ impl TestHelper {
         let shutdown = CancellationToken::new();
         let shutdown_clone = shutdown.clone();
 
-        // Spawn RzGate
+        // Spawn RzProxy
         let handle = tokio::spawn(async move {
             let _ = async_main(config, shutdown_clone).await;
         });
@@ -54,7 +54,7 @@ impl TestHelper {
         use clap::Parser;
 
         let args = vec![
-            "rzgate",
+            "rzproxy",
             "--mode",
             "router",
             "--roomzin-addr",
@@ -85,12 +85,12 @@ impl TestHelper {
         for attempt in 0..max_attempts {
             match client.get(format!("{}/health", addr)).send().await {
                 Ok(resp) if resp.status().is_success() => {
-                    tracing::info!("RzGate is ready on {}", addr);
+                    tracing::info!("RzProxy is ready on {}", addr);
                     return;
                 }
                 _ => {
                     if attempt == max_attempts - 1 {
-                        panic!("RzGate failed to start after {} attempts", max_attempts);
+                        panic!("RzProxy failed to start after {} attempts", max_attempts);
                     }
                     sleep(Duration::from_millis(200)).await;
                 }

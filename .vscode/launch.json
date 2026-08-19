@@ -5,11 +5,11 @@
             "name": "Debug (Single Mode)",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/rzgate",
+            "program": "${workspaceFolder}/target/debug/rzproxy",
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
-                "RUST_LOG": "rzgate=debug",
+                "RUST_LOG": "rzproxy=debug",
             },
             "preLaunchTask": "cargo build"
         }

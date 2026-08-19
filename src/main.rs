@@ -1,4 +1,4 @@
-use rzgate::{async_main, config::Config, error::RZError};
+use rzproxy::{async_main, config::Config, error::RZError};
 use tokio_util::sync::CancellationToken;
 
 fn main() -> Result<(), RZError> {

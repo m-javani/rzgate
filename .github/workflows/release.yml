@@ -1,7 +1,7 @@
 # // SPDX-License-Identifier: BUSL-1.1
 # // Copyright (c) 2026 M. Javani
 # //
-# // This file is part of rzgate.
+# // This file is part of rzproxy.
 # //
 # // Use of this software is governed by the Business Source License 1.1
 # // included in the LICENSE file in the root of this repository.
@@ -36,24 +36,24 @@ jobs:
         run: cargo build --release --target x86_64-unknown-linux-gnu
 
       - name: Strip binary
-        run: strip --strip-all target/x86_64-unknown-linux-gnu/release/rzgate
+        run: strip --strip-all target/x86_64-unknown-linux-gnu/release/rzproxy
 
       - name: Install UPX
         run: sudo apt-get update && sudo apt-get install -y upx
 
       - name: Compress with UPX
-        run: upx --best --lzma target/x86_64-unknown-linux-gnu/release/rzgate
+        run: upx --best --lzma target/x86_64-unknown-linux-gnu/release/rzproxy
 
       - name: Generate checksum
         run: |
           cd target/x86_64-unknown-linux-gnu/release
-          sha256sum rzgate > rzgate.sha256
+          sha256sum rzproxy > rzproxy.sha256
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            target/x86_64-unknown-linux-gnu/release/rzgate
-            target/x86_64-unknown-linux-gnu/release/rzgate.sha256
+            target/x86_64-unknown-linux-gnu/release/rzproxy
+            target/x86_64-unknown-linux-gnu/release/rzproxy.sha256
           generate_release_notes: true
           name: ${{ github.ref_name }}

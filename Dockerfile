@@ -1,7 +1,7 @@
 # // SPDX-License-Identifier: BUSL-1.1
 # // Copyright (c) 2026 M. Javani
 # //
-# // This file is part of rzgate.
+# // This file is part of rzproxy.
 # //
 # // Use of this software is governed by the Business Source License 1.1
 # // included in the LICENSE file in the root of this repository.
@@ -12,10 +12,10 @@ RUN apt-get update && apt-get install -y ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Binary is copied to root by CI
-COPY rzgate /opt/rzgate/rzgate
+COPY rzproxy /opt/rzproxy/rzproxy
 
-RUN chmod +x /opt/rzgate/rzgate
+RUN chmod +x /opt/rzproxy/rzproxy
 
 EXPOSE 8777
 
-CMD ["/opt/rzgate/rzgate"]
+CMD ["/opt/rzproxy/rzproxy"]

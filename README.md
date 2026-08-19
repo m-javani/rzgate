@@ -1,8 +1,8 @@
-# RzGate HTTP Proxy
+# RzProxy HTTP Proxy
 
 HTTP/JSON proxy for [Roomzin](https://m-javani.github.io/roomzin-doc/) — provides REST/JSON access to Roomzin's TCP-based inventory engine for legacy systems, teams that cannot use native SDKs, or quick testing environments.
 
-RzGate is a high-performance HTTP proxy providing JSON access to the underlying Roomzin TCP-based backend. It is designed for maximum simplicity and speed — a single endpoint with command-based dispatching.
+RzProxy is a high-performance HTTP proxy providing JSON access to the underlying Roomzin TCP-based backend. It is designed for maximum simplicity and speed — a single endpoint with command-based dispatching.
 
 ---
 
@@ -27,10 +27,10 @@ RzGate is a high-performance HTTP proxy providing JSON access to the underlying 
 
 ```bash
 # Download the latest release
-wget https://github.com/m-javani/rzgate/releases/latest/download/rzgate
+wget https://github.com/m-javani/rzproxy/releases/latest/download/rzproxy
 
 # Make it executable
-chmod +x rzgate
+chmod +x rzproxy
 ```
 
 ---
@@ -40,7 +40,7 @@ chmod +x rzgate
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--mode` | `standalone` or `router` | `standalone` |
-| `--listening-addr` | Address RzGate listens on | `0.0.0.0` |
+| `--listening-addr` | Address RzProxy listens on | `0.0.0.0` |
 | `--http-port` | HTTP port | `8777` |
 | `--roomzin-addr` | Roomzin server address | `127.0.0.1` |
 | `--roomzin-port` | Roomzin server port | `7777` |
@@ -52,11 +52,11 @@ chmod +x rzgate
 
 ---
 
-## Run RzGate
+## Run RzProxy
 
 ```bash
 # Override defaults
-./rzgate \
+./rzproxy \
     --mode router \
     --roomzin-addr router.example.com \
     --roomzin-port 7777 \
@@ -70,14 +70,14 @@ chmod +x rzgate
 
 ## Configuration
 
-RzGate is configured entirely via CLI flags — no YAML file required. All settings have sensible defaults, so you can get started with just `./rzgate`.
+RzProxy is configured entirely via CLI flags — no YAML file required. All settings have sensible defaults, so you can get started with just `./rzproxy`.
 
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--mode` | `standalone` or `router` | `standalone` |
 | `--roomzin-addr` | Roomzin server address | `127.0.0.1` |
 | `--roomzin-port` | Roomzin server port | `7777` |
-| `--listening-addr` | Address RzGate listens on | `0.0.0.0` |
+| `--listening-addr` | Address RzProxy listens on | `0.0.0.0` |
 | `--http-port` | HTTP port | `8777` |
 | `--timeout-sec` | Request timeout | `2` |
 | `--keep-alive-sec` | TCP keepalive interval | `30` |
@@ -88,7 +88,7 @@ RzGate is configured entirely via CLI flags — no YAML file required. All setti
 ### Example with all flags
 
 ```bash
-./rzgate \
+./rzproxy \
     --mode router \
     --roomzin-addr 10.0.0.10 \
     --roomzin-port 7777 \
@@ -105,7 +105,7 @@ RzGate is configured entirely via CLI flags — no YAML file required. All setti
 
 ## API Reference
 
-**Base URL:** `http://your-rzgate-server.com/api`
+**Base URL:** `http://your-rzproxy-server.com/api`
 
 ### Single Endpoint
 
@@ -462,7 +462,7 @@ HTTP status: `400` (client error) or `5xx` (server)
 
 ## Metrics
 
-RzGate exposes a Prometheus endpoint for monitoring.
+RzProxy exposes a Prometheus endpoint for monitoring.
 
 **Endpoint:** `GET /metrics`
 
@@ -494,7 +494,7 @@ RzGate exposes a Prometheus endpoint for monitoring.
 
 **For router mode:**
 - The `segment` field is used by the router to route to the correct shard.
-- RzGate connects to the router, which handles all routing logic.
+- RzProxy connects to the router, which handles all routing logic.
 
 ---
 
@@ -510,15 +510,15 @@ Please open an issue before proposing large changes. All contributions are subje
 
 This project is licensed under the [BUSL-1.1 License](LICENSE).
 
-**Note:** RzGate is designed to communicate with Roomzin Server, which requires a valid Roomzin license.
+**Note:** RzProxy is designed to communicate with Roomzin Server, which requires a valid Roomzin license.
 
 ---
 
 ## Support
 
-- **Documentation**: [roomzin-doc/rzgate](https://m-javani.github.io/roomzin-doc/rzgate.html)
+- **Documentation**: [roomzin-doc/rzproxy](https://m-javani.github.io/roomzin-doc/rzproxy.html)
 - **Community Q&A**: [GitHub Discussions](https://github.com/m-javani/roomzin-doc/discussions)
-- **Issues**: [GitHub Issues](https://github.com/m-javani/rzgate/issues)
+- **Issues**: [GitHub Issues](https://github.com/m-javani/rzproxy/issues)
 
 ---
 

@@ -30,10 +30,10 @@ install-addlicense: ## Install addlicense tool
 .PHONY: build
 build:
 	cargo build --release
-	strip --strip-all target/release/rzgate
-	upx --best --lzma target/release/rzgate
-	ls -lh target/release/rzgate
-	cp target/release/rzgate .
+	strip --strip-all target/release/rzproxy
+	upx --best --lzma target/release/rzproxy
+	ls -lh target/release/rzproxy
+	cp target/release/rzproxy .
 
 .PHONY: help
 help: ## Show this help message
