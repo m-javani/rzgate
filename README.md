@@ -516,7 +516,6 @@ This project is licensed under the [BUSL-1.1 License](LICENSE).
 
 ## Support
 
-- **Documentation**: [roomzin-doc/rzproxy](https://m-javani.github.io/roomzin-doc/rzproxy.html)
 - **Community Q&A**: [GitHub Discussions](https://github.com/m-javani/roomzin-doc/discussions)
 - **Issues**: [GitHub Issues](https://github.com/m-javani/rzproxy/issues)
 
@@ -524,6 +523,6 @@ This project is licensed under the [BUSL-1.1 License](LICENSE).
 
 ## Related Repositories
 
+- [Roomzin](https://m-javani.github.io/roomzin-doc/) - Roomzin Documents
 - [Roomzin Quickstart](https://github.com/m-javani/roomzin-quickstart) — Local Docker cluster
 - [Roomzin Bench](https://github.com/m-javani/roomzin-bench) — Benchmarking tool
-- [Roomzin SDKs](https://github.com/m-javani?tab=repositories&q=roomzin) — Native SDKs for all languages
