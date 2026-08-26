@@ -1,4 +1,3 @@
-# .github/workflows/release.yml
 # // SPDX-License-Identifier: BUSL-1.1
 # // Copyright (c) 2026 M. Javani
 # //
@@ -13,7 +12,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 jobs:
   build:
@@ -51,7 +49,7 @@ jobs:
           cd target/x86_64-unknown-linux-gnu/release
           sha256sum rzproxy > rzproxy.sha256
 
-      - name: Upload to versioned release
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           files: |
@@ -59,15 +57,3 @@ jobs:
             target/x86_64-unknown-linux-gnu/release/rzproxy.sha256
           generate_release_notes: true
           name: ${{ github.ref_name }}
-          overwrite_files: true
-
-      - name: Create/update latest release
-        uses: softprops/action-gh-release@v3
-        with:
-          files: |
-            target/x86_64-unknown-linux-gnu/release/rzproxy
-            target/x86_64-unknown-linux-gnu/release/rzproxy.sha256
-          tag_name: latest
-          name: Latest Build
-          body: "Latest build from ${{ github.ref_name }}"
-          overwrite_files: true
